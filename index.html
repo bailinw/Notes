@@ -603,8 +603,8 @@
     <div class="notes" id="notes"></div>
 
     <div class="empty" id="empty">
-      <p>还没有笔记</p>
-      <span>点击右下角的 + 开始记录</span>
+      <p>还没有内容</p>
+      <span>点击右下角的 + 开始创建</span>
     </div>
   </div>
 
@@ -631,7 +631,7 @@
       <header class="editor-bar">
         <button class="bar-btn" id="backBtn">
           <svg viewBox="0 0 12 20" aria-hidden="true"><path d="M10 2 2 10l8 8"/></svg>
-          <span id="backLabel">设定</span>
+          <span id="backLabel">返回</span>
         </button>
         <button class="bar-btn primary" id="doneBtn">完成</button>
       </header>
@@ -665,6 +665,7 @@
   'use strict';
 
   /* ---------------- Supabase 客户端 ---------------- */
+  // ⚠️ 请确保这里的地址和 Key 替换成了你自己的
   const SUPABASE_URL = 'https://wkotfzmgjunryporolwj.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_Y-71alwruk8ImQ_L5RroYg__w5GbnMe';
   const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -680,59 +681,20 @@
     }
 
     function mapWorldview(row) {
-      return {
-        id: row.id,
-        name: row.name,
-        summary: row.summary,
-        settings: row.settings,
-        tags: row.tags ? JSON.parse(row.tags) : [],
-        createdAt: row.created_at,
-        updatedAt: row.updated_at
-      };
+      return { id: row.id, name: row.name, summary: row.summary, settings: row.settings, tags: row.tags ? JSON.parse(row.tags) : [], createdAt: row.created_at, updatedAt: row.updated_at };
     }
-
     function mapCharacter(row) {
-      return {
-        id: row.id,
-        name: row.name,
-        worldviewId: row.worldview_id,
-        age: row.age,
-        gender: row.gender,
-        appearance: row.appearance,
-        personality: row.personality,
-        background: row.background,
-        tags: row.tags ? JSON.parse(row.tags) : [],
-        createdAt: row.created_at,
-        updatedAt: row.updated_at
-      };
+      return { id: row.id, name: row.name, worldviewId: row.worldview_id, age: row.age, gender: row.gender, appearance: row.appearance, personality: row.personality, background: row.background, tags: row.tags ? JSON.parse(row.tags) : [], createdAt: row.created_at, updatedAt: row.updated_at };
     }
-
     function mapMap(row) {
-      return {
-        id: row.id,
-        name: row.name,
-        worldviewId: row.worldview_id,
-        imageUrl: row.image_url,
-        places: row.places || [],
-        createdAt: row.created_at,
-        updatedAt: row.updated_at
-      };
+      return { id: row.id, name: row.name, worldviewId: row.worldview_id, imageUrl: row.image_url, places: row.places || [], createdAt: row.created_at, updatedAt: row.updated_at };
     }
-
     function mapNote(row) {
-      return {
-        id: row.id,
-        title: row.title,
-        body: row.body,
-        mentions: Array.isArray(row.mentions) ? {} : (row.mentions || {}),
-        createdAt: row.created_at,
-        updatedAt: row.updated_at
-      };
+      return { id: row.id, title: row.title, body: row.body, mentions: Array.isArray(row.mentions) ? {} : (row.mentions || {}), createdAt: row.created_at, updatedAt: row.updated_at };
     }
 
     return {
       init: async function () {
-        // 先读本地缓存，立即渲染（不等网络）
         try {
           const raw = localStorage.getItem(KEY);
           if (raw) {
@@ -746,7 +708,6 @@
           }
         } catch (e) { /* ignore */ }
 
-        // 再异步从 Supabase 拉最新
         try {
           const [w, c, m, n] = await Promise.all([
             sb.from('worldviews').select('*').is('deleted_at', null),
@@ -768,14 +729,9 @@
         }
       },
 
-      /* ---------- 世界观 ---------- */
       async listWorldviews() {
         try {
-          const { data: rows, error } = await sb
-            .from('worldviews')
-            .select('*')
-            .is('deleted_at', null)
-            .order('updated_at', { ascending: false });
+          const { data: rows, error } = await sb.from('worldviews').select('*').is('deleted_at', null).order('updated_at', { ascending: false });
           if (error) throw error;
           const mapped = rows.map(mapWorldview);
           cache.worldviews = mapped;
@@ -783,64 +739,33 @@
           return mapped;
         } catch (e) { return cache.worldviews.slice(); }
       },
-
       async getWorldview(id) {
         try {
-          const { data: row, error } = await sb
-            .from('worldviews')
-            .select('*')
-            .eq('id', id)
-            .single();
+          const { data: row, error } = await sb.from('worldviews').select('*').eq('id', id).single();
           if (error) throw error;
           return mapWorldview(row);
-        } catch (e) {
-          return cache.worldviews.find(function (o) { return o.id === id; }) || null;
-        }
+        } catch (e) { return cache.worldviews.find(o => o.id === id) || null; }
       },
-
       async saveWorldview(obj) {
-        const payload = {
-          name: obj.name,
-          summary: obj.summary,
-          settings: obj.settings,
-          tags: JSON.stringify(obj.tags || [])
-        };
+        const payload = { name: obj.name, summary: obj.summary, settings: obj.settings, tags: JSON.stringify(obj.tags || []) };
         if (obj.id) {
-          const { data: row, error } = await sb
-            .from('worldviews')
-            .update(payload)
-            .eq('id', obj.id)
-            .select()
-            .single();
+          const { data: row, error } = await sb.from('worldviews').update(payload).eq('id', obj.id).select().single();
           if (error) throw error;
           return mapWorldview(row);
         } else {
-          const { data: row, error } = await sb
-            .from('worldviews')
-            .insert(payload)
-            .select()
-            .single();
+          const { data: row, error } = await sb.from('worldviews').insert(payload).select().single();
           if (error) throw error;
           return mapWorldview(row);
         }
       },
-
       async deleteWorldview(id) {
-        const { error } = await sb
-          .from('worldviews')
-          .update({ deleted_at: new Date().toISOString() })
-          .eq('id', id);
+        const { error } = await sb.from('worldviews').update({ deleted_at: new Date().toISOString() }).eq('id', id);
         if (error) throw error;
       },
 
-      /* ---------- 角色 ---------- */
       async listCharacters() {
         try {
-          const { data: rows, error } = await sb
-            .from('characters')
-            .select('*')
-            .is('deleted_at', null)
-            .order('updated_at', { ascending: false });
+          const { data: rows, error } = await sb.from('characters').select('*').is('deleted_at', null).order('updated_at', { ascending: false });
           if (error) throw error;
           const mapped = rows.map(mapCharacter);
           cache.characters = mapped;
@@ -848,68 +773,33 @@
           return mapped;
         } catch (e) { return cache.characters.slice(); }
       },
-
       async getCharacter(id) {
         try {
-          const { data: row, error } = await sb
-            .from('characters')
-            .select('*')
-            .eq('id', id)
-            .single();
+          const { data: row, error } = await sb.from('characters').select('*').eq('id', id).single();
           if (error) throw error;
           return mapCharacter(row);
-        } catch (e) {
-          return cache.characters.find(function (o) { return o.id === id; }) || null;
-        }
+        } catch (e) { return cache.characters.find(o => o.id === id) || null; }
       },
-
       async saveCharacter(obj) {
-        const payload = {
-          name: obj.name,
-          worldview_id: obj.worldviewId || null,
-          age: obj.age,
-          gender: obj.gender,
-          appearance: obj.appearance,
-          personality: obj.personality,
-          background: obj.background,
-          tags: JSON.stringify(obj.tags || [])
-        };
+        const payload = { name: obj.name, worldview_id: obj.worldviewId || null, age: obj.age, gender: obj.gender, appearance: obj.appearance, personality: obj.personality, background: obj.background, tags: JSON.stringify(obj.tags || []) };
         if (obj.id) {
-          const { data: row, error } = await sb
-            .from('characters')
-            .update(payload)
-            .eq('id', obj.id)
-            .select()
-            .single();
+          const { data: row, error } = await sb.from('characters').update(payload).eq('id', obj.id).select().single();
           if (error) throw error;
           return mapCharacter(row);
         } else {
-          const { data: row, error } = await sb
-            .from('characters')
-            .insert(payload)
-            .select()
-            .single();
+          const { data: row, error } = await sb.from('characters').insert(payload).select().single();
           if (error) throw error;
           return mapCharacter(row);
         }
       },
-
       async deleteCharacter(id) {
-        const { error } = await sb
-          .from('characters')
-          .update({ deleted_at: new Date().toISOString() })
-          .eq('id', id);
+        const { error } = await sb.from('characters').update({ deleted_at: new Date().toISOString() }).eq('id', id);
         if (error) throw error;
       },
 
-      /* ---------- 地图 ---------- */
       async listMaps() {
         try {
-          const { data: rows, error } = await sb
-            .from('maps')
-            .select('*')
-            .is('deleted_at', null)
-            .order('updated_at', { ascending: false });
+          const { data: rows, error } = await sb.from('maps').select('*').is('deleted_at', null).order('updated_at', { ascending: false });
           if (error) throw error;
           const mapped = rows.map(mapMap);
           cache.maps = mapped;
@@ -917,64 +807,33 @@
           return mapped;
         } catch (e) { return cache.maps.slice(); }
       },
-
       async getMap(id) {
         try {
-          const { data: row, error } = await sb
-            .from('maps')
-            .select('*')
-            .eq('id', id)
-            .single();
+          const { data: row, error } = await sb.from('maps').select('*').eq('id', id).single();
           if (error) throw error;
           return mapMap(row);
-        } catch (e) {
-          return cache.maps.find(function (o) { return o.id === id; }) || null;
-        }
+        } catch (e) { return cache.maps.find(o => o.id === id) || null; }
       },
-
       async saveMap(obj) {
-        const payload = {
-          name: obj.name,
-          worldview_id: obj.worldviewId || null,
-          image_url: obj.imageUrl,
-          places: obj.places || []
-        };
+        const payload = { name: obj.name, worldview_id: obj.worldviewId || null, image_url: obj.imageUrl, places: obj.places || [] };
         if (obj.id) {
-          const { data: row, error } = await sb
-            .from('maps')
-            .update(payload)
-            .eq('id', obj.id)
-            .select()
-            .single();
+          const { data: row, error } = await sb.from('maps').update(payload).eq('id', obj.id).select().single();
           if (error) throw error;
           return mapMap(row);
         } else {
-          const { data: row, error } = await sb
-            .from('maps')
-            .insert(payload)
-            .select()
-            .single();
+          const { data: row, error } = await sb.from('maps').insert(payload).select().single();
           if (error) throw error;
           return mapMap(row);
         }
       },
-
       async deleteMap(id) {
-        const { error } = await sb
-          .from('maps')
-          .update({ deleted_at: new Date().toISOString() })
-          .eq('id', id);
+        const { error } = await sb.from('maps').update({ deleted_at: new Date().toISOString() }).eq('id', id);
         if (error) throw error;
       },
 
-      /* ---------- 笔记 ---------- */
       async listNotes() {
         try {
-          const { data: rows, error } = await sb
-            .from('notes')
-            .select('*')
-            .is('deleted_at', null)
-            .order('updated_at', { ascending: false });
+          const { data: rows, error } = await sb.from('notes').select('*').is('deleted_at', null).order('updated_at', { ascending: false });
           if (error) throw error;
           const mapped = rows.map(mapNote);
           cache.notes = mapped;
@@ -982,52 +841,27 @@
           return mapped;
         } catch (e) { return cache.notes.slice(); }
       },
-
       async getNote(id) {
         try {
-          const { data: row, error } = await sb
-            .from('notes')
-            .select('*')
-            .eq('id', id)
-            .single();
+          const { data: row, error } = await sb.from('notes').select('*').eq('id', id).single();
           if (error) throw error;
           return mapNote(row);
-        } catch (e) {
-          return cache.notes.find(function (o) { return o.id === id; }) || null;
-        }
+        } catch (e) { return cache.notes.find(o => o.id === id) || null; }
       },
-
       async saveNote(obj) {
-        const payload = {
-          title: obj.title,
-          body: obj.body,
-          mentions: obj.mentions || {}
-        };
+        const payload = { title: obj.title, body: obj.body, mentions: obj.mentions || {} };
         if (obj.id) {
-          const { data: row, error } = await sb
-            .from('notes')
-            .update(payload)
-            .eq('id', obj.id)
-            .select()
-            .single();
+          const { data: row, error } = await sb.from('notes').update(payload).eq('id', obj.id).select().single();
           if (error) throw error;
           return mapNote(row);
         } else {
-          const { data: row, error } = await sb
-            .from('notes')
-            .insert(payload)
-            .select()
-            .single();
+          const { data: row, error } = await sb.from('notes').insert(payload).select().single();
           if (error) throw error;
           return mapNote(row);
         }
       },
-
       async deleteNote(id) {
-        const { error } = await sb
-          .from('notes')
-          .update({ deleted_at: new Date().toISOString() })
-          .eq('id', id);
+        const { error } = await sb.from('notes').update({ deleted_at: new Date().toISOString() }).eq('id', id);
         if (error) throw error;
       }
     };
@@ -1039,7 +873,6 @@
   const notesListEl  = $('#notesList');
   const notesEmptyEl = $('#notesEmpty');
   const notesSearch  = $('#notesSearch');
-
   const notesEl     = $('#notes');
   const emptyEl     = $('#empty');
   const countEl     = $('#count');
@@ -1085,33 +918,25 @@
   const pad = (n) => String(n).padStart(2, '0');
 
   function uid() {
-    if (window.crypto && typeof crypto.randomUUID === 'function') {
-      return crypto.randomUUID();
-    }
+    if (window.crypto && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
     return 'n' + Date.now().toString(36) + Math.random().toString(16).slice(2);
   }
 
   function formatTime(ts) {
     const d = new Date(ts);
     const now = new Date();
-
     const sameDay = d.toDateString() === now.toDateString();
     if (sameDay) return pad(d.getHours()) + ':' + pad(d.getMinutes());
-
     const y = new Date(now);
     y.setDate(now.getDate() - 1);
     if (d.toDateString() === y.toDateString()) return '昨天';
-
-    if (d.getFullYear() === now.getFullYear()) {
-      return (d.getMonth() + 1) + '月' + d.getDate() + '日';
-    }
+    if (d.getFullYear() === now.getFullYear()) return (d.getMonth() + 1) + '月' + d.getDate() + '日';
     return d.getFullYear() + '/' + (d.getMonth() + 1) + '/' + d.getDate();
   }
 
   function formatFullTime(ts) {
     const d = new Date(ts);
-    return d.getFullYear() + '年' + (d.getMonth() + 1) + '月' + d.getDate() + '日 ' +
-           pad(d.getHours()) + ':' + pad(d.getMinutes());
+    return d.getFullYear() + '年' + (d.getMonth() + 1) + '月' + d.getDate() + '日 ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
   }
 
   function truncate(s, n) {
@@ -1128,7 +953,7 @@
   async function worldviewNameMap() {
     const map = {};
     const wvs = await DB.listWorldviews();
-    wvs.forEach(function (w) { map[w.id] = w.name || '未命名'; });
+    wvs.forEach(w => { map[w.id] = w.name || '未命名'; });
     return map;
   }
 
@@ -1137,17 +962,13 @@
     state.system = sys;
     document.getElementById('systemNotes').classList.toggle('active', sys === 'notes');
     document.getElementById('systemLibrary').classList.toggle('active', sys === 'library');
-    tabbar.querySelectorAll('button').forEach(function (b) {
-      b.classList.toggle('active', b.dataset.system === sys);
-    });
+    tabbar.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.system === sys));
     render();
   }
 
   function jumpToLibrary(type, id) {
     state.libraryTab = type;
-    tabsEl.querySelectorAll('button').forEach(function (b) {
-      b.classList.toggle('active', b.dataset.tab === type);
-    });
+    tabsEl.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.tab === type));
     pageTitle.textContent = TAB_LABEL[type];
     librarySearch.value = '';
     switchSystem('library');
@@ -1164,12 +985,10 @@
   async function renderNotes() {
     const q = notesSearch.value.trim().toLowerCase();
     let list = await DB.listNotes();
-    list = list.slice().sort(function (a, b) { return b.updatedAt - a.updatedAt; });
+    list = list.slice().sort((a, b) => b.updatedAt - a.updatedAt);
 
     if (q) {
-      list = list.filter(function (n) {
-        return ((n.title || '') + ' ' + (n.body || '')).toLowerCase().indexOf(q) !== -1;
-      });
+      list = list.filter(n => ((n.title || '') + ' ' + (n.body || '')).toLowerCase().indexOf(q) !== -1);
     }
 
     if (!list.length) {
@@ -1181,11 +1000,8 @@
     }
 
     notesEmptyEl.classList.remove('show');
-
     const frag = document.createDocumentFragment();
-    list.forEach(function (note) {
-      frag.appendChild(renderNoteCard(note));
-    });
+    list.forEach(note => frag.appendChild(renderNoteCard(note)));
     notesListEl.innerHTML = '';
     notesListEl.appendChild(frag);
   }
@@ -1244,18 +1060,12 @@
     const q = librarySearch.value.trim().toLowerCase();
     let list = [];
 
-    if (state.libraryTab === 'worldview') {
-      list = await DB.listWorldviews();
-    } else if (state.libraryTab === 'character') {
-      list = await DB.listCharacters();
-    } else if (state.libraryTab === 'map') {
-      list = await DB.listMaps();
-    }
+    if (state.libraryTab === 'worldview') list = await DB.listWorldviews();
+    else if (state.libraryTab === 'character') list = await DB.listCharacters();
+    else if (state.libraryTab === 'map') list = await DB.listMaps();
 
-    list = list.slice().sort(function (a, b) { return b.updatedAt - a.updatedAt; });
-
+    list = list.slice().sort((a, b) => b.updatedAt - a.updatedAt);
     cardSubtitle._wvMap = await worldviewNameMap();
-
     countEl.textContent = list.length ? list.length + ' 条' : '';
 
     if (!list.length) {
@@ -1268,9 +1078,7 @@
     }
 
     let filtered = list;
-    if (q) {
-      filtered = await filterBySearch(list, q);
-    }
+    if (q) filtered = await filterBySearch(list, q);
 
     if (!filtered.length) {
       notesEl.innerHTML = '';
@@ -1281,39 +1089,29 @@
     }
 
     emptyEl.classList.remove('show');
-
     const frag = document.createDocumentFragment();
-    filtered.forEach(function (item) {
-      frag.appendChild(renderCard(item));
-    });
-
+    filtered.forEach(item => frag.appendChild(renderCard(item)));
     notesEl.innerHTML = '';
     notesEl.appendChild(frag);
   }
 
   async function filterBySearch(list, q) {
     if (state.libraryTab === 'worldview') {
-      return list.filter(function (w) {
-        const text = ((w.name || '') + ' ' + (w.summary || '') + ' ' + (w.settings || '') + ' ' + ((w.tags || []).join(' '))).toLowerCase();
-        return text.indexOf(q) !== -1;
-      });
+      return list.filter(w => ((w.name || '') + ' ' + (w.summary || '') + ' ' + (w.settings || '') + ' ' + ((w.tags || []).join(' '))).toLowerCase().indexOf(q) !== -1);
     }
     if (state.libraryTab === 'character') {
       const wvMap = await worldviewNameMap();
-      return list.filter(function (ch) {
+      return list.filter(ch => {
         const wvName = wvMap[ch.worldviewId] || '未归属';
-        const text = ((ch.name || '') + ' ' + (ch.appearance || '') + ' ' + (ch.personality || '') + ' ' +
-                      (ch.background || '') + ' ' + ((ch.tags || []).join(' ')) + ' ' + wvName).toLowerCase();
-        return text.indexOf(q) !== -1;
+        return ((ch.name || '') + ' ' + (ch.appearance || '') + ' ' + (ch.personality || '') + ' ' + (ch.background || '') + ' ' + ((ch.tags || []).join(' ')) + ' ' + wvName).toLowerCase().indexOf(q) !== -1;
       });
     }
     if (state.libraryTab === 'map') {
       const wvMap = await worldviewNameMap();
-      return list.filter(function (mp) {
+      return list.filter(mp => {
         const wvName = wvMap[mp.worldviewId] || '未归属';
-        const placeNames = (mp.places || []).map(function (p) { return p.name; }).join(' ');
-        const text = ((mp.name || '') + ' ' + wvName + ' ' + placeNames).toLowerCase();
-        return text.indexOf(q) !== -1;
+        const placeNames = (mp.places || []).map(p => p.name).join(' ');
+        return ((mp.name || '') + ' ' + wvName + ' ' + placeNames).toLowerCase().indexOf(q) !== -1;
       });
     }
     return list;
@@ -1343,7 +1141,7 @@
       thumb.className = 'note-thumb';
       thumb.src = item.imageUrl;
       thumb.alt = '';
-      thumb.onerror = function () { thumb.style.display = 'none'; };
+      thumb.onerror = () => { thumb.style.display = 'none'; };
       head.insertBefore(thumb, title);
     }
 
@@ -1357,9 +1155,7 @@
   }
 
   function cardSubtitle(item) {
-    if (state.libraryTab === 'worldview') {
-      return truncate(item.summary, 60) || '暂无简介';
-    }
+    if (state.libraryTab === 'worldview') return truncate(item.summary, 60) || '暂无简介';
     if (state.libraryTab === 'character') {
       const wvName = (cardSubtitle._wvMap || {})[item.worldviewId] || '未归属';
       const pers = truncate(item.personality, 40);
@@ -1367,20 +1163,17 @@
     }
     if (state.libraryTab === 'map') {
       const wvName = (cardSubtitle._wvMap || {})[item.worldviewId] || '未归属';
-      const n = (item.places || []).length;
-      return wvName + ' · ' + n + ' 个地点';
+      return wvName + ' · ' + (item.places || []).length + ' 个地点';
     }
     return '';
   }
 
   /* ---------------- 编辑器 ---------------- */
   function autoGrowAll() {
-    const tas = formBody.querySelectorAll('textarea');
-    for (let i = 0; i < tas.length; i++) {
-      const t = tas[i];
+    formBody.querySelectorAll('textarea').forEach(t => {
       t.style.height = 'auto';
       t.style.height = t.scrollHeight + 'px';
-    }
+    });
   }
 
   function autoGrowNote() {
@@ -1391,19 +1184,16 @@
   }
 
   function bindAutoGrow() {
-    const tas = formBody.querySelectorAll('textarea');
-    for (let i = 0; i < tas.length; i++) {
-      tas[i].addEventListener('input', autoGrowAll);
-    }
+    formBody.querySelectorAll('textarea').forEach(t => t.addEventListener('input', autoGrowAll));
   }
 
   function updateMeta(rec) {
-    metaEl.textContent = '最后编辑：' + formatFullTime(rec.updatedAt);
+    if (rec) metaEl.textContent = '最后编辑：' + formatFullTime(rec.updatedAt);
   }
 
   function worldviewSelectOptions(wvs, selectedId) {
     let html = '<option value="">未归属</option>';
-    wvs.forEach(function (w) {
+    wvs.forEach(w => {
       const sel = w.id === selectedId ? ' selected' : '';
       html += '<option value="' + w.id + '"' + sel + '>' + (w.name || '未命名') + '</option>';
     });
@@ -1420,9 +1210,7 @@
       backLabel.textContent = '笔记';
 
       const note = id ? await DB.getNote(id) : null;
-      if (note && note.mentions) {
-        state.pendingMentions = Object.assign({}, note.mentions);
-      }
+      if (note && note.mentions) state.pendingMentions = Object.assign({}, note.mentions);
 
       formBody.innerHTML =
         '<input id="f-title" class="title" placeholder="标题" autocomplete="off" spellcheck="false" value="' + esc(note ? note.title : '') + '">' +
@@ -1464,103 +1252,69 @@
     editorEl.setAttribute('aria-hidden', 'false');
     document.body.style.overflow = 'hidden';
     if (rec) updateMeta(rec);
-    requestAnimationFrame(function () {
+    requestAnimationFrame(() => {
       autoGrowAll();
       if (state.editorMode === 'note') autoGrowNote();
       const first = formBody.querySelector('input, textarea, select');
-      if (first && !rec) setTimeout(function () { first.focus(); }, 320);
+      if (first && !rec) setTimeout(() => first.focus(), 320);
     });
   }
 
   function worldviewForm(wv) {
     wv = wv || { name: '', summary: '', settings: '', tags: [] };
-    return '' +
-      '<div class="field">' +
-        '<label class="field-label">名称</label>' +
-        '<input id="f-name" value="' + esc(wv.name) + '" placeholder="世界观名称" />' +
-      '</div>' +
-      '<div class="field">' +
-        '<label class="field-label">简介</label>' +
-        '<textarea id="f-summary" placeholder="一句话简介…">' + esc(wv.summary) + '</textarea>' +
-      '</div>' +
-      '<div class="field">' +
-        '<label class="field-label">详细设定</label>' +
-        '<textarea id="f-settings" placeholder="世界观的规则、历史、地理…">' + esc(wv.settings) + '</textarea>' +
-      '</div>' +
-      '<div class="field">' +
-        '<label class="field-label">标签（逗号分隔）</label>' +
-        '<input id="f-tags" value="' + esc((wv.tags || []).join(', ')) + '" placeholder="奇幻, 科幻" />' +
-      '</div>';
+    return `
+      <div class="field"><label class="field-label">名称</label><input id="f-name" value="${esc(wv.name)}" placeholder="世界观名称" /></div>
+      <div class="field"><label class="field-label">简介</label><textarea id="f-summary" placeholder="一句话简介…">${esc(wv.summary)}</textarea></div>
+      <div class="field"><label class="field-label">详细设定</label><textarea id="f-settings" placeholder="规则、历史、地理…">${esc(wv.settings)}</textarea></div>
+      <div class="field"><label class="field-label">标签（逗号分隔）</label><input id="f-tags" value="${esc((wv.tags || []).join(', '))}" placeholder="奇幻, 科幻" /></div>
+    `;
   }
 
   function characterForm(ch, wvs) {
     ch = ch || { name: '', worldviewId: '', age: '', gender: '', appearance: '', personality: '', background: '', tags: [] };
-    return '' +
-      '<div class="field">' +
-        '<label class="field-label">名称</label>' +
-        '<input id="f-name" value="' + esc(ch.name) + '" placeholder="角色名" />' +
-      '</div>' +
-      '<div class="field">' +
-        '<label class="field-label">所属世界观</label>' +
-        '<select id="f-worldview">' + worldviewSelectOptions(wvs, ch.worldviewId) + '</select>' +
-      '</div>' +
-      '<div class="row-2">' +
-        '<div class="field"><label class="field-label">年龄</label><input id="f-age" value="' + esc(ch.age) + '" /></div>' +
-        '<div class="field"><label class="field-label">性别</label><input id="f-gender" value="' + esc(ch.gender) + '" /></div>' +
-      '</div>' +
-      '<div class="field">' +
-        '<label class="field-label">外貌</label>' +
-        '<textarea id="f-appearance" placeholder="外貌特征…">' + esc(ch.appearance) + '</textarea>' +
-      '</div>' +
-      '<div class="field">' +
-        '<label class="field-label">性格</label>' +
-        '<textarea id="f-personality" placeholder="性格特点…">' + esc(ch.personality) + '</textarea>' +
-      '</div>' +
-      '<div class="field">' +
-        '<label class="field-label">背景</label>' +
-        '<textarea id="f-background" placeholder="角色背景故事…">' + esc(ch.background) + '</textarea>' +
-      '</div>' +
-      '<div class="field">' +
-        '<label class="field-label">标签（逗号分隔）</label>' +
-        '<input id="f-tags" value="' + esc((ch.tags || []).join(', ')) + '" />' +
-      '</div>';
+    return `
+      <div class="field"><label class="field-label">名称</label><input id="f-name" value="${esc(ch.name)}" placeholder="角色名" /></div>
+      <div class="field"><label class="field-label">所属世界观</label><select id="f-worldview">${worldviewSelectOptions(wvs, ch.worldviewId)}</select></div>
+      <div class="row-2">
+        <div class="field"><label class="field-label">年龄</label><input id="f-age" value="${esc(ch.age)}" /></div>
+        <div class="field"><label class="field-label">性别</label><input id="f-gender" value="${esc(ch.gender)}" /></div>
+      </div>
+      <div class="field"><label class="field-label">外貌</label><textarea id="f-appearance" placeholder="外貌特征…">${esc(ch.appearance)}</textarea></div>
+      <div class="field"><label class="field-label">性格</label><textarea id="f-personality" placeholder="性格特点…">${esc(ch.personality)}</textarea></div>
+      <div class="field"><label class="field-label">背景</label><textarea id="f-background" placeholder="角色背景故事…">${esc(ch.background)}</textarea></div>
+      <div class="field"><label class="field-label">标签（逗号分隔）</label><input id="f-tags" value="${esc((ch.tags || []).join(', '))}" /></div>
+    `;
   }
 
   function mapForm(mp, wvs) {
     mp = mp || { name: '', worldviewId: '', imageUrl: '', places: [] };
     let placesHtml = '';
     const places = mp.places && mp.places.length ? mp.places : [{ name: '', desc: '' }];
-    places.forEach(function (p) {
-      placesHtml += placeRowHtml(p);
-    });
-    return '' +
-      '<div class="field">' +
-        '<label class="field-label">名称</label>' +
-        '<input id="f-name" value="' + esc(mp.name) + '" placeholder="地图名" />' +
-      '</div>' +
-      '<div class="field">' +
-        '<label class="field-label">所属世界观</label>' +
-        '<select id="f-worldview">' + worldviewSelectOptions(wvs, mp.worldviewId) + '</select>' +
-      '</div>' +
-      '<div class="field">' +
-        '<label class="field-label">图片链接</label>' +
-        '<input id="f-imageurl" value="' + esc(mp.imageUrl || '') + '" placeholder="粘贴图片 URL，留空则显示占位" />' +
-        '<img id="f-imgpreview" class="img-preview" style="display:none;" alt="" />' +
-      '</div>' +
-      '<div class="field">' +
-        '<label class="field-label">地点</label>' +
-        '<div id="placeList">' + placesHtml + '</div>' +
-        '<button class="add-place" id="addPlace" type="button">+ 添加地点</button>' +
-      '</div>';
+    places.forEach(p => { placesHtml += placeRowHtml(p); });
+    return `
+      <div class="field"><label class="field-label">名称</label><input id="f-name" value="${esc(mp.name)}" placeholder="地图名" /></div>
+      <div class="field"><label class="field-label">所属世界观</label><select id="f-worldview">${worldviewSelectOptions(wvs, mp.worldviewId)}</select></div>
+      <div class="field">
+        <label class="field-label">图片链接</label>
+        <input id="f-imageurl" value="${esc(mp.imageUrl || '')}" placeholder="粘贴图片 URL" />
+        <img id="f-imgpreview" class="img-preview" style="display:none;" alt="" />
+      </div>
+      <div class="field">
+        <label class="field-label">地点</label>
+        <div id="placeList">${placesHtml}</div>
+        <button class="add-place" id="addPlace" type="button">+ 添加地点</button>
+      </div>
+    `;
   }
 
   function placeRowHtml(p) {
-    return '' +
-      '<div class="place">' +
-        '<input class="p-name" value="' + esc(p.name) + '" placeholder="地点名" />' +
-        '<input class="p-desc" value="' + esc(p.desc) + '" placeholder="描述" />' +
-        '<button class="p-del" type="button" aria-label="删除">×</button>' +
-      '</div>';
+    return `
+      <div class="place">
+        <input class="p-name" value="${esc(p.name)}" placeholder="地点名" />
+        <input class="p-desc" value="${esc(p.desc)}" placeholder="描述" />
+        <button class="p-del" type="button" aria-label="删除">×</button>
+      </div>
+    `;
   }
 
   function bindMapEvents() {
@@ -1568,26 +1322,18 @@
     const imgPreview = formBody.querySelector('#f-imgpreview');
     function refreshPreview() {
       const url = imgInput.value.trim();
-      if (url) {
-        imgPreview.src = url;
-        imgPreview.style.display = 'block';
-      } else {
-        imgPreview.style.display = 'none';
-        imgPreview.src = '';
-      }
+      if (url) { imgPreview.src = url; imgPreview.style.display = 'block'; }
+      else { imgPreview.style.display = 'none'; imgPreview.src = ''; }
     }
     imgInput.addEventListener('input', refreshPreview);
     refreshPreview();
 
     const placeList = formBody.querySelector('#placeList');
-    placeList.addEventListener('click', function (e) {
+    placeList.addEventListener('click', e => {
       const del = e.target.closest('.p-del');
-      if (del) {
-        const row = del.closest('.place');
-        if (row) row.remove();
-      }
+      if (del) { const row = del.closest('.place'); if (row) row.remove(); }
     });
-    formBody.querySelector('#addPlace').addEventListener('click', function () {
+    formBody.querySelector('#addPlace').addEventListener('click', () => {
       placeList.insertAdjacentHTML('beforeend', placeRowHtml({ name: '', desc: '' }));
     });
   }
@@ -1595,11 +1341,15 @@
   function readTags() {
     const el = formBody.querySelector('#f-tags');
     if (!el) return [];
-    return el.value.split(/[,，]/).map(function (t) { return t.trim(); }).filter(Boolean);
+    return el.value.split(/[,，]/).map(t => t.trim()).filter(Boolean);
   }
 
   async function closeEditor() {
-    await flushSave();
+    try {
+      await flushSave();
+    } catch (e) {
+      console.warn('退出时保存失败:', e);
+    }
     editorEl.classList.remove('open');
     editorEl.setAttribute('aria-hidden', 'true');
     document.body.style.overflow = '';
@@ -1623,10 +1373,7 @@
     while ((m = re.exec(body)) !== null) {
       const name = m[1];
       if (result[name]) continue;
-      if (pending && pending[name]) {
-        result[name] = pending[name];
-        continue;
-      }
+      if (pending && pending[name]) { result[name] = pending[name]; continue; }
       const ent = await findEntityByName(name);
       if (ent) result[name] = ent;
     }
@@ -1635,13 +1382,13 @@
 
   async function findEntityByName(name) {
     const wvs = await DB.listWorldviews();
-    const w = wvs.find(function (x) { return (x.name || '') === name; });
+    const w = wvs.find(x => (x.name || '') === name);
     if (w) return { type: 'worldview', id: w.id };
     const chs = await DB.listCharacters();
-    const c = chs.find(function (x) { return (x.name || '') === name; });
+    const c = chs.find(x => (x.name || '') === name);
     if (c) return { type: 'character', id: c.id };
     const mps = await DB.listMaps();
-    const mp = mps.find(function (x) { return (x.name || '') === name; });
+    const mp = mps.find(x => (x.name || '') === name);
     if (mp) return { type: 'map', id: mp.id };
     return null;
   }
@@ -1666,9 +1413,11 @@
 
       const newMentions = await parseMentions(body, state.pendingMentions);
       const rec = await DB.saveNote({ id: id, title: title.trim(), body: body, mentions: newMentions });
-      if (!id) state.noteEditing = rec.id;
-      state.pendingMentions = newMentions;
-      updateMeta(rec);
+      if (rec) {
+        if (!id) state.noteEditing = rec.id;
+        state.pendingMentions = newMentions;
+        updateMeta(rec);
+      }
       return;
     }
 
@@ -1676,9 +1425,6 @@
 
     if (type === 'worldview') {
       const name = val('#f-name');
-      const summary = val('#f-summary');
-      const settings = val('#f-settings');
-      const tags = readTags();
       if (!name) {
         if (id) await DB.deleteWorldview(id);
         state.libraryEditing = null;
@@ -1686,9 +1432,11 @@
         render();
         return;
       }
-      const rec = await DB.saveWorldview({ id: id, name: name, summary: summary, settings: settings, tags: tags });
-      if (!id) state.libraryEditing.id = rec.id;
-      updateMeta(rec);
+      const rec = await DB.saveWorldview({ id: id, name: name, summary: val('#f-summary'), settings: val('#f-settings'), tags: readTags() });
+      if (rec) {
+        if (!id) state.libraryEditing.id = rec.id;
+        updateMeta(rec);
+      }
     } else if (type === 'character') {
       const name = val('#f-name');
       if (!name) {
@@ -1698,20 +1446,16 @@
         render();
         return;
       }
-      const obj = {
-        id: id,
-        name: name,
-        worldviewId: val('#f-worldview') || '',
-        age: val('#f-age'),
-        gender: val('#f-gender'),
-        appearance: val('#f-appearance'),
-        personality: val('#f-personality'),
-        background: val('#f-background'),
-        tags: readTags()
-      };
-      const rec = await DB.saveCharacter(obj);
-      if (!id) state.libraryEditing.id = rec.id;
-      updateMeta(rec);
+      const rec = await DB.saveCharacter({
+        id: id, name: name, worldviewId: val('#f-worldview') || '',
+        age: val('#f-age'), gender: val('#f-gender'),
+        appearance: val('#f-appearance'), personality: val('#f-personality'),
+        background: val('#f-background'), tags: readTags()
+      });
+      if (rec) {
+        if (!id) state.libraryEditing.id = rec.id;
+        updateMeta(rec);
+      }
     } else if (type === 'map') {
       const name = val('#f-name');
       if (!name) {
@@ -1722,22 +1466,16 @@
         return;
       }
       const places = [];
-      const rows = formBody.querySelectorAll('#placeList .place');
-      for (let i = 0; i < rows.length; i++) {
-        const nm = rows[i].querySelector('.p-name').value.trim();
-        const ds = rows[i].querySelector('.p-desc').value.trim();
+      formBody.querySelectorAll('#placeList .place').forEach(row => {
+        const nm = row.querySelector('.p-name').value.trim();
+        const ds = row.querySelector('.p-desc').value.trim();
         if (nm || ds) places.push({ id: uid(), name: nm, desc: ds });
+      });
+      const rec = await DB.saveMap({ id: id, name: name, worldviewId: val('#f-worldview') || '', imageUrl: val('#f-imageurl').trim(), places: places });
+      if (rec) {
+        if (!id) state.libraryEditing.id = rec.id;
+        updateMeta(rec);
       }
-      const obj = {
-        id: id,
-        name: name,
-        worldviewId: val('#f-worldview') || '',
-        imageUrl: val('#f-imageurl').trim(),
-        places: places
-      };
-      const rec = await DB.saveMap(obj);
-      if (!id) state.libraryEditing.id = rec.id;
-      updateMeta(rec);
     }
   }
 
@@ -1748,7 +1486,13 @@
 
   function scheduleSave() {
     clearTimeout(saveTimer);
-    saveTimer = setTimeout(saveNow, 300);
+    saveTimer = setTimeout(async () => {
+      try {
+        await saveNow();
+      } catch (e) {
+        console.warn('自动保存失败:', e);
+      }
+    }, 300);
   }
 
   /* ---------------- @ 提及选择器 ---------------- */
@@ -1775,34 +1519,30 @@
 
     let html = '';
     let any = false;
-    groups.forEach(function (g) {
-      const filtered = q ? g.items.filter(function (it) {
-        return (it.name || '').toLowerCase().indexOf(q) !== -1;
-      }) : g.items;
+    groups.forEach(g => {
+      const filtered = q ? g.items.filter(it => (it.name || '').toLowerCase().indexOf(q) !== -1) : g.items;
       if (!filtered.length) return;
       any = true;
       html += '<div class="sheet-group">' + g.label + '</div>';
-      filtered.forEach(function (it) {
+      filtered.forEach(it => {
         html += '<div class="sheet-item" data-type="' + g.type + '" data-id="' + it.id + '" data-name="' + esc(it.name) + '">' + esc(it.name || '未命名') + '</div>';
       });
     });
 
-    if (!any) {
-      html = '<div style="text-align:center;padding:40px 0;color:var(--label-3);">还没有设定内容</div>';
-    }
+    if (!any) html = '<div style="text-align:center;padding:40px 0;color:var(--label-3);">还没有设定内容</div>';
     mentionList.innerHTML = html;
   }
 
   /* ---------------- 事件绑定 ---------------- */
 
   // 底部导航
-  tabbar.addEventListener('click', function (e) {
+  tabbar.addEventListener('click', e => {
     const btn = e.target.closest('button[data-system]');
     if (btn) switchSystem(btn.dataset.system);
   });
 
   // 笔记列表点击（chip 优先跳转，否则打开笔记）
-  notesListEl.addEventListener('click', function (e) {
+  notesListEl.addEventListener('click', e => {
     const chip = e.target.closest('.mention');
     if (chip) {
       jumpToLibrary(chip.dataset.type, chip.dataset.id);
@@ -1813,16 +1553,15 @@
   });
 
   // 设定列表点击
-  notesEl.addEventListener('click', function (e) {
+  notesEl.addEventListener('click', e => {
     const card = e.target.closest('.note');
     if (card) openEditor('library', state.libraryTab, card.dataset.id);
   });
 
-  // 新建
-  fab.addEventListener('click', async function () {
+  // 新建（改为直接打开编辑器，不再等网络）
+  fab.addEventListener('click', function () {
     if (state.system === 'notes') {
-      const rec = await DB.saveNote({ title: '', body: '', mentions: {} });
-      openEditor('note', null, rec.id);
+      openEditor('note', null, null);
     } else {
       openEditor('library', state.libraryTab, null);
     }
@@ -1869,27 +1608,25 @@
   librarySearch.addEventListener('input', renderLibrary);
 
   // 设定子 tab 切换
-  tabsEl.addEventListener('click', function (e) {
+  tabsEl.addEventListener('click', e => {
     const btn = e.target.closest('button[data-tab]');
     if (!btn) return;
     const tab = btn.dataset.tab;
     if (tab === state.libraryTab) return;
     state.libraryTab = tab;
-    tabsEl.querySelectorAll('button').forEach(function (b) {
-      b.classList.toggle('active', b.dataset.tab === tab);
-    });
+    tabsEl.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
     pageTitle.textContent = TAB_LABEL[tab];
     librarySearch.value = '';
     renderLibrary();
   });
 
   // @ 选择器：搜索
-  mentionSearch.addEventListener('input', function () {
+  mentionSearch.addEventListener('input', () => {
     renderMentionList(mentionSearch.value.trim().toLowerCase());
   });
 
   // @ 选择器：选中一项
-  mentionList.addEventListener('click', function (e) {
+  mentionList.addEventListener('click', e => {
     const item = e.target.closest('.sheet-item');
     if (!item) return;
     const type = item.dataset.type;
@@ -1905,9 +1642,7 @@
     const insert = '@' + name + ' ';
     bodyEl.value = val.slice(0, start) + insert + val.slice(end);
 
-    if (state.pendingMentions) {
-      state.pendingMentions[name] = { type: type, id: id };
-    }
+    if (state.pendingMentions) state.pendingMentions[name] = { type: type, id: id };
 
     closeMentionSheet();
     bodyEl.focus();
@@ -1918,12 +1653,12 @@
 
   // @ 选择器：关闭
   mentionClose.addEventListener('click', closeMentionSheet);
-  mentionSheet.addEventListener('click', function (e) {
+  mentionSheet.addEventListener('click', e => {
     if (e.target === mentionSheet) closeMentionSheet();
   });
 
   // 快捷键：Esc 退出编辑
-  document.addEventListener('keydown', function (e) {
+  document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
       if (!mentionSheet.hidden) { closeMentionSheet(); return; }
       if (editorEl.classList.contains('open')) closeEditor();
@@ -1931,8 +1666,8 @@
   });
 
   // 页面隐藏/关闭前保存
-  window.addEventListener('pagehide', function () { if (state.editorMode) flushSave(); });
-  document.addEventListener('visibilitychange', function () {
+  window.addEventListener('pagehide', () => { if (state.editorMode) flushSave(); });
+  document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden' && state.editorMode) flushSave();
   });
 
@@ -1940,7 +1675,6 @@
   (async function () {
     await DB.init();
 
-    // 实时同步：任意表变更都重新渲染
     sb.channel('oc-realtime')
       .on('postgres_changes', { event: '*', schema: 'public' }, function () {
         render();

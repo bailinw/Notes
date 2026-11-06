@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
-<meta name="theme-color" content="#000000" />
+<meta name="theme-color" content="#0d0e12" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="笔记" />
@@ -554,38 +554,439 @@
     .fab { right: calc(50% - 360px + 4px); }
   }
 
-  .lock-screen {
-    position: fixed; inset: 0; z-index: 100;
+  #app {
+    height: 100%;
+    opacity: 0;
+    -webkit-filter: blur(8px);
+    filter: blur(8px);
+    transition: opacity 0.8s cubic-bezier(0.2, 0.8, 0.2, 1),
+                -webkit-filter 0.8s cubic-bezier(0.2, 0.8, 0.2, 1),
+                filter 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+    will-change: opacity, filter;
+  }
+  #app.app-visible {
+    opacity: 1;
+    -webkit-filter: blur(0);
+    filter: blur(0);
+  }
+
+  .toast {
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    z-index: 200;
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    color: #fff;
+    padding: 14px 24px;
+    border-radius: 12px;
+    font-size: 15px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+  .toast.show { opacity: 1; }
+
+  /* ============ 新版开屏锁屏 ============ */
+  .bg-grid {
+    position: fixed; inset: 0;
+    z-index: -3;
+    background-image:
+      linear-gradient(to right, rgba(255,255,255,0.02) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255,255,255,0.02) 1px, transparent 1px);
+    background-size: 40px 40px;
+    mask-image: radial-gradient(circle at center, black 20%, transparent 80%);
+    -webkit-mask-image: radial-gradient(circle at center, black 20%, transparent 80%);
+  }
+
+  .noise {
+    position: fixed; inset: 0;
+    z-index: -1;
+    opacity: 0.03;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    pointer-events: none;
+  }
+
+  .bg-glow-1 {
+    position: fixed;
+    top: -10%; left: -10%;
+    width: 60vw; height: 60vw;
+    background: radial-gradient(circle, rgba(100, 150, 255, 0.04) 0%, transparent 60%);
+    filter: blur(40px);
+    z-index: -2;
+    animation: floatGlow1 10s ease-in-out infinite alternate;
+  }
+  .bg-glow-2 {
+    position: fixed;
+    bottom: -10%; right: -10%;
+    width: 50vw; height: 50vw;
+    background: radial-gradient(circle, rgba(255, 200, 100, 0.03) 0%, transparent 60%);
+    filter: blur(40px);
+    z-index: -2;
+    animation: floatGlow2 12s ease-in-out infinite alternate;
+  }
+
+  @keyframes floatGlow1 {
+    0% { transform: scale(1) translate(0, 0); opacity: 0.5; }
+    100% { transform: scale(1.1) translate(20px, 20px); opacity: 1; }
+  }
+  @keyframes floatGlow2 {
+    0% { transform: scale(1) translate(0, 0); opacity: 0.5; }
+    100% { transform: scale(1.1) translate(-20px, -20px); opacity: 1; }
+  }
+
+  .sys-wrap {
+    position: fixed; inset: 0;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: calc(32px + var(--safe-top)) 16px calc(32px + var(--safe-bottom));
     background: var(--bg);
-    display: flex; align-items: center; justify-content: center;
-    padding: 20px;
+    overflow: hidden;
+    opacity: 0;
+    -webkit-filter: blur(4px);
+    filter: blur(4px);
+    transform: scale(0.92);
+    will-change: opacity, transform, filter;
+    transition: opacity 1.2s cubic-bezier(0.16, 1, 0.3, 1),
+                -webkit-filter 1.2s cubic-bezier(0.16, 1, 0.3, 1),
+                filter 1.2s cubic-bezier(0.16, 1, 0.3, 1),
+                transform 1.2s cubic-bezier(0.16, 1, 0.3, 1);
   }
-  .lock-screen.hidden { display: none; }
-  .lock-box {
-    width: 100%; max-width: 320px;
-    background: var(--card); padding: 30px 20px; border-radius: 16px;
+
+  .sys-wrap.entered {
+    opacity: 1;
+    -webkit-filter: blur(0);
+    filter: blur(0);
+    transform: scale(1);
+  }
+
+  .sys-wrap.leaving {
+    opacity: 0;
+    transform: scale(1.03);
+    pointer-events: none;
+    transition: opacity 0.8s cubic-bezier(0.2, 0.8, 0.2, 1),
+                transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .sys-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    max-width: 720px;
+    margin: 0 auto;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    color: var(--label-3);
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--label);
+    text-shadow: 0 0 10px rgba(255,255,255,0.15);
+  }
+
+  .brand-icon {
+    width: 14px; height: 14px;
+    border: 1.5px solid var(--label);
+    border-radius: 3px;
+    position: relative;
+    box-shadow: 0 0 8px rgba(255,255,255,0.1);
+  }
+  .brand-icon::after {
+    content: '';
+    position: absolute;
+    inset: 3px;
+    background: var(--label);
+  }
+
+  .sys-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .dot-status {
+    width: 6px; height: 6px;
+    background: #30d158;
+    border-radius: 50%;
+    box-shadow: 0 0 10px rgba(48, 209, 88, 0.8);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.85); }
+  }
+
+  .sys-main {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    max-width: 280px;
+    margin: 0 auto;
+    transform: translateY(-4vh);
+  }
+  .sys-main.shake {
+    animation: shake 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+  }
+  @keyframes shake {
+    0%, 100% { transform: translateY(-4vh) translateX(0); }
+    20% { transform: translateY(-4vh) translateX(-10px); }
+    40% { transform: translateY(-4vh) translateX(10px); }
+    60% { transform: translateY(-4vh) translateX(-6px); }
+    80% { transform: translateY(-4vh) translateX(6px); }
+  }
+
+  .ambient-glow {
+    position: absolute;
+    top: 10%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 300px;
+    height: 300px;
+    background: radial-gradient(circle, rgba(255, 245, 220, 0.09) 0%, rgba(255, 240, 200, 0.03) 40%, transparent 70%);
+    filter: blur(30px);
+    pointer-events: none;
+    z-index: -1;
+    animation: glowBreath 4s ease-in-out infinite alternate;
+  }
+
+  @keyframes glowBreath {
+    0% { opacity: 0.7; transform: translateX(-50%) scale(0.95); }
+    100% { opacity: 1; transform: translateX(-50%) scale(1.05); }
+  }
+
+  .input-wrap {
+    position: relative;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 58px;
+  }
+
+  .input-wrap input {
+    width: 100%;
+    background: none;
+    border: none;
+    padding: 8px 0 24px 0;
     text-align: center;
+    color: var(--label);
+    font-size: 15px;
+    font-family: inherit;
+    font-weight: 500;
+    letter-spacing: 0.25em;
+    text-indent: 0.25em;
+    outline: none;
+    -webkit-appearance: none;
+    text-shadow: 0 0 12px rgba(255,255,255,0);
+    transition: text-shadow 0.3s ease;
   }
-  .lock-box h2 { margin: 0 0 20px; font-size: 24px; color: var(--label); }
-  .lock-box input {
-    width: 100%; background: var(--bg); border-radius: 10px; padding: 12px 14px;
-    font-size: 16px; color: var(--label); margin-bottom: 16px; border: 1px solid var(--sep);
+
+  .input-wrap input:focus {
+    text-shadow: 0 0 12px rgba(255,255,255,0.4);
   }
-  .lock-box button {
-    width: 100%; background: var(--blue); color: #fff; padding: 12px;
-    border-radius: 10px; font-size: 16px; font-weight: 600;
+
+  .input-wrap input::placeholder {
+    color: var(--label-3);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.2em;
+    text-indent: 0.2em;
+    text-shadow: none;
+  }
+
+  .underline {
+    position: absolute;
+    bottom: 0;
+    width: 110px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transition: width 0.4s cubic-bezier(0.2, 0.8, 0.2, 1),
+                background 0.4s ease,
+                box-shadow 0.4s ease;
+  }
+
+  .input-wrap input:focus + .underline {
+    width: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.8), transparent);
+    box-shadow: 0 0 12px rgba(255,255,255,0.2);
+  }
+
+  .enter-btn-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .enter-btn {
+    border: none;
+    background: none;
+    padding: 0;
+    cursor: pointer;
+    color: var(--label);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.3em;
+    text-indent: 0.3em;
+    text-shadow: 0 0 10px rgba(255,255,255,0.3);
+    transition: color 0.3s ease, font-weight 0.1s ease, text-shadow 0.3s ease;
+    animation: breath 2.5s ease-in-out infinite;
+  }
+
+  @keyframes breath {
+    0%, 100% { opacity: 0.4; text-shadow: 0 0 5px rgba(255,255,255,0.1); }
+    50% { opacity: 1; text-shadow: 0 0 15px rgba(255,255,255,0.5); }
+  }
+
+  .enter-btn-wrap.loading .enter-btn,
+  .enter-btn-wrap.error .enter-btn,
+  .enter-btn-wrap.success .enter-btn {
+    animation: none;
+    opacity: 1;
+  }
+
+  .enter-btn-wrap.error .enter-btn {
+    color: var(--red);
+    font-weight: 700;
+    text-shadow: 0 0 10px rgba(255, 69, 58, 0.5);
+  }
+
+  .enter-btn-wrap.success .enter-btn {
+    color: #30d158;
+    text-shadow: 0 0 12px rgba(48, 209, 88, 0.6);
+  }
+
+  .indicator-wrap {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 4px;
+    transition: opacity 0.4s ease, filter 0.4s ease;
+  }
+
+  .indicator-wrap.hide-blur {
+    opacity: 0;
+    filter: blur(8px);
+  }
+
+  .btn-dot {
+    width: 4px;
+    height: 4px;
+    background: #fff;
+    border-radius: 50%;
+    box-shadow: 0 0 10px rgba(255,255,255,0.8);
+  }
+
+  .btn-progress {
+    width: 0px;
+    height: 2px;
+    background: #fff;
+    border-radius: 2px;
+    box-shadow: 0 0 10px rgba(255,255,255,0.8);
+    opacity: 0;
+    transition: width 0.1s linear, opacity 0.2s ease, background 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  .enter-btn-wrap.loading .btn-dot,
+  .enter-btn-wrap.error .btn-dot,
+  .enter-btn-wrap.success .btn-dot { display: none; }
+
+  .enter-btn-wrap.loading .btn-progress,
+  .enter-btn-wrap.error .btn-progress,
+  .enter-btn-wrap.success .btn-progress { opacity: 1; }
+
+  .enter-btn-wrap.error .btn-progress {
+    background: var(--red);
+    box-shadow: 0 0 10px rgba(255, 69, 58, 0.8);
+  }
+
+  .enter-btn-wrap.success .btn-progress {
+    background: #30d158;
+    box-shadow: 0 0 10px rgba(48, 209, 88, 0.8);
+  }
+
+  .sys-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    max-width: 720px;
+    margin: 0 auto;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    color: var(--label-3);
+    text-transform: uppercase;
+  }
+
+  @media (max-width: 480px) {
+    .sys-wrap { padding: calc(24px + var(--safe-top)) 20px calc(24px + var(--safe-bottom)); }
+    .sys-main { transform: translateY(-2vh); }
+    @keyframes shake {
+      0%, 100% { transform: translateY(-2vh) translateX(0); }
+      20% { transform: translateY(-2vh) translateX(-10px); }
+      40% { transform: translateY(-2vh) translateX(10px); }
+      60% { transform: translateY(-2vh) translateX(-6px); }
+      80% { transform: translateY(-2vh) translateX(6px); }
+    }
   }
 </style>
 </head>
 <body>
 
-<div class="lock-screen" id="lockScreen">
-  <div class="lock-box">
-    <h2>OC 数据库</h2>
-    <input type="password" id="pwdInput" placeholder="请输入访问密码" autocomplete="off" />
-    <button id="unlockBtn">进入系统</button>
-    <p id="pwdError" style="color: var(--red); display: none; font-size: 14px; margin-top: 10px;">密码错误，请重试</p>
-  </div>
+<!-- ===================== 全新开屏系统网关 ===================== -->
+<div class="sys-wrap" id="lockScreen">
+
+  <div class="bg-grid"></div>
+  <div class="noise"></div>
+  <div class="bg-glow-1"></div>
+  <div class="bg-glow-2"></div>
+
+  <header class="sys-header">
+    <div class="brand">
+      <div class="brand-icon"></div>
+      <span>WORKSPACE</span>
+    </div>
+    <div class="sys-status">
+      <span class="dot-status"></span>
+      <span>SYS.ONLINE</span>
+    </div>
+  </header>
+
+  <main class="sys-main" id="sysMain">
+    <div class="ambient-glow"></div>
+
+    <div class="input-wrap">
+      <input type="password" id="pwdInput" placeholder="请输入访问密码" maxlength="20" autocomplete="off" spellcheck="false">
+      <div class="underline"></div>
+    </div>
+
+    <div class="enter-btn-wrap" id="btnWrap">
+      <button class="enter-btn" id="unlockBtn">进入系统</button>
+
+      <div class="indicator-wrap" id="indicatorWrap">
+        <div class="btn-dot"></div>
+        <div class="btn-progress" id="btnProgress"></div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="sys-footer">
+    <span>RAMSHACKLE TROUPE</span>
+    <span>BETA</span>
+  </footer>
+
 </div>
 
 <div id="app">
@@ -691,1097 +1092,11 @@
   </div>
 </div>
 
-<script>
-(function () {
-  'use strict';
+<div class="toast" id="toast"></div>
 
-  /* ---------------- Supabase 客户端 ---------------- */
-  // ⚠️ 请确保这里的地址和 Key 替换成了你自己的
-  const SUPABASE_URL = 'https://wkotfzmgjunryporolwj.supabase.co';
-  const SUPABASE_KEY = 'sb_publishable_Y-71alwruk8ImQ_L5RroYg__w5GbnMe';
-  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+<script src="js/app.js"></script>
+<script src="js/notes.js"></script>
+<script src="js/library.js"></script>
 
-  /* ---------------- 数据层 DB ---------------- */
-  const DB = (function () {
-    const KEY = 'oc-db-cache';
-    const cache = { worldviews: [], characters: [], maps: [], notes: [] };
-
-    function persistCache() {
-      try { localStorage.setItem(KEY, JSON.stringify(cache)); }
-      catch (e) { console.warn('缓存失败', e); }
-    }
-
-    function mapWorldview(row) {
-      return { id: row.id, name: row.name, summary: row.summary, settings: row.settings, tags: row.tags ? JSON.parse(row.tags) : [], createdAt: row.created_at, updatedAt: row.updated_at };
-    }
-    function mapCharacter(row) {
-      return { id: row.id, name: row.name, worldviewId: row.worldview_id, age: row.age, gender: row.gender, appearance: row.appearance, personality: row.personality, background: row.background, tags: row.tags ? JSON.parse(row.tags) : [], createdAt: row.created_at, updatedAt: row.updated_at };
-    }
-    function mapMap(row) {
-      return { id: row.id, name: row.name, worldviewId: row.worldview_id, imageUrl: row.image_url, places: row.places || [], createdAt: row.created_at, updatedAt: row.updated_at };
-    }
-    function mapNote(row) {
-      return { id: row.id, title: row.title, body: row.body, mentions: Array.isArray(row.mentions) ? {} : (row.mentions || {}), createdAt: row.created_at, updatedAt: row.updated_at };
-    }
-
-    function upsert(arr, rec) {
-      const i = arr.findIndex(o => o.id === rec.id);
-      if (i >= 0) arr[i] = rec; else arr.push(rec);
-    }
-
-    return {
-      init: async function () {
-        try {
-          const raw = localStorage.getItem(KEY);
-          if (raw) {
-            const parsed = JSON.parse(raw);
-            if (parsed) {
-              cache.worldviews = parsed.worldviews || [];
-              cache.characters = parsed.characters || [];
-              cache.maps = parsed.maps || [];
-              cache.notes = parsed.notes || [];
-            }
-          }
-        } catch (e) { /* ignore */ }
-
-        try {
-          const [w, c, m, n] = await Promise.all([
-            sb.from('worldviews').select('*').is('deleted_at', null),
-            sb.from('characters').select('*').is('deleted_at', null),
-            sb.from('maps').select('*').is('deleted_at', null),
-            sb.from('notes').select('*').is('deleted_at', null)
-          ]);
-          if (w.error) throw w.error;
-          if (c.error) throw c.error;
-          if (m.error) throw m.error;
-          if (n.error) throw n.error;
-          cache.worldviews = w.data.map(mapWorldview);
-          cache.characters = c.data.map(mapCharacter);
-          cache.maps = m.data.map(mapMap);
-          cache.notes = n.data.map(mapNote);
-          persistCache();
-        } catch (e) {
-          console.warn('拉取最新数据失败，继续使用缓存', e);
-        }
-      },
-
-      listWorldviews() {
-        return cache.worldviews.slice().sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-      },
-      getWorldview(id) {
-        return cache.worldviews.find(o => o.id === id) || null;
-      },
-      saveWorldview(obj) {
-        const now = new Date().toISOString();
-        const existing = obj.id ? cache.worldviews.find(o => o.id === obj.id) : null;
-        const rec = {
-          id: obj.id || uid(),
-          name: obj.name,
-          summary: obj.summary,
-          settings: obj.settings,
-          tags: obj.tags || [],
-          createdAt: existing ? existing.createdAt : now,
-          updatedAt: now
-        };
-        upsert(cache.worldviews, rec);
-        persistCache();
-        const payload = { name: rec.name, summary: rec.summary, settings: rec.settings, tags: JSON.stringify(rec.tags) };
-        if (obj.id) {
-          sb.from('worldviews').update(payload).eq('id', obj.id).then(() => {}).catch(e => console.warn('同步世界观失败', e));
-        } else {
-          payload.id = rec.id;
-          sb.from('worldviews').insert(payload).then(() => {}).catch(e => console.warn('同步世界观失败', e));
-        }
-        return rec;
-      },
-      deleteWorldview(id) {
-        cache.worldviews = cache.worldviews.filter(o => o.id !== id);
-        persistCache();
-        sb.from('worldviews').update({ deleted_at: new Date().toISOString() }).eq('id', id).then(() => {}).catch(e => console.warn('删除世界观失败', e));
-      },
-
-      listCharacters() {
-        return cache.characters.slice().sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-      },
-      getCharacter(id) {
-        return cache.characters.find(o => o.id === id) || null;
-      },
-      saveCharacter(obj) {
-        const now = new Date().toISOString();
-        const existing = obj.id ? cache.characters.find(o => o.id === obj.id) : null;
-        const rec = {
-          id: obj.id || uid(),
-          name: obj.name,
-          worldviewId: obj.worldviewId || null,
-          age: obj.age,
-          gender: obj.gender,
-          appearance: obj.appearance,
-          personality: obj.personality,
-          background: obj.background,
-          tags: obj.tags || [],
-          createdAt: existing ? existing.createdAt : now,
-          updatedAt: now
-        };
-        upsert(cache.characters, rec);
-        persistCache();
-        const payload = { name: rec.name, worldview_id: rec.worldviewId, age: rec.age, gender: rec.gender, appearance: rec.appearance, personality: rec.personality, background: rec.background, tags: JSON.stringify(rec.tags) };
-        if (obj.id) {
-          sb.from('characters').update(payload).eq('id', obj.id).then(() => {}).catch(e => console.warn('同步角色失败', e));
-        } else {
-          payload.id = rec.id;
-          sb.from('characters').insert(payload).then(() => {}).catch(e => console.warn('同步角色失败', e));
-        }
-        return rec;
-      },
-      deleteCharacter(id) {
-        cache.characters = cache.characters.filter(o => o.id !== id);
-        persistCache();
-        sb.from('characters').update({ deleted_at: new Date().toISOString() }).eq('id', id).then(() => {}).catch(e => console.warn('删除角色失败', e));
-      },
-
-      listMaps() {
-        return cache.maps.slice().sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-      },
-      getMap(id) {
-        return cache.maps.find(o => o.id === id) || null;
-      },
-      saveMap(obj) {
-        const now = new Date().toISOString();
-        const existing = obj.id ? cache.maps.find(o => o.id === obj.id) : null;
-        const rec = {
-          id: obj.id || uid(),
-          name: obj.name,
-          worldviewId: obj.worldviewId || null,
-          imageUrl: obj.imageUrl,
-          places: obj.places || [],
-          createdAt: existing ? existing.createdAt : now,
-          updatedAt: now
-        };
-        upsert(cache.maps, rec);
-        persistCache();
-        const payload = { name: rec.name, worldview_id: rec.worldviewId, image_url: rec.imageUrl, places: rec.places };
-        if (obj.id) {
-          sb.from('maps').update(payload).eq('id', obj.id).then(() => {}).catch(e => console.warn('同步地图失败', e));
-        } else {
-          payload.id = rec.id;
-          sb.from('maps').insert(payload).then(() => {}).catch(e => console.warn('同步地图失败', e));
-        }
-        return rec;
-      },
-      deleteMap(id) {
-        cache.maps = cache.maps.filter(o => o.id !== id);
-        persistCache();
-        sb.from('maps').update({ deleted_at: new Date().toISOString() }).eq('id', id).then(() => {}).catch(e => console.warn('删除地图失败', e));
-      },
-
-      listNotes() {
-        return cache.notes.slice().sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-      },
-      getNote(id) {
-        return cache.notes.find(o => o.id === id) || null;
-      },
-      saveNote(obj) {
-        const now = new Date().toISOString();
-        const existing = obj.id ? cache.notes.find(o => o.id === obj.id) : null;
-        const rec = {
-          id: obj.id || uid(),
-          title: obj.title,
-          body: obj.body,
-          mentions: obj.mentions || {},
-          createdAt: existing ? existing.createdAt : now,
-          updatedAt: now
-        };
-        upsert(cache.notes, rec);
-        persistCache();
-        const payload = { title: rec.title, body: rec.body, mentions: rec.mentions };
-        if (obj.id) {
-          sb.from('notes').update(payload).eq('id', obj.id).then(() => {}).catch(e => console.warn('同步笔记失败', e));
-        } else {
-          payload.id = rec.id;
-          sb.from('notes').insert(payload).then(() => {}).catch(e => console.warn('同步笔记失败', e));
-        }
-        return rec;
-      },
-      deleteNote(id) {
-        cache.notes = cache.notes.filter(o => o.id !== id);
-        persistCache();
-        sb.from('notes').update({ deleted_at: new Date().toISOString() }).eq('id', id).then(() => {}).catch(e => console.warn('删除笔记失败', e));
-      }
-    };
-  })();
-
-  /* ---------------- 常量与状态 ---------------- */
-  const $ = (sel) => document.querySelector(sel);
-
-  const notesListEl  = $('#notesList');
-  const notesEmptyEl = $('#notesEmpty');
-  const notesSearch  = $('#notesSearch');
-  const notesEl     = $('#notes');
-  const emptyEl     = $('#empty');
-  const countEl     = $('#count');
-  const librarySearch = $('#librarySearch');
-  const tabsEl      = $('#tabs');
-  const pageTitle   = $('#pageTitle');
-
-  const fab         = $('#fab');
-  const tabbar      = $('#tabbar');
-
-  const editorEl   = $('#editor');
-  const editorBody = $('#editorBody');
-  const formBody   = $('#formBody');
-  const metaEl     = $('#meta');
-  const backBtn    = $('#backBtn');
-  const backLabel  = $('#backLabel');
-  const doneBtn    = $('#doneBtn');
-  const deleteBtn  = $('#deleteBtn');
-
-  const mentionSheet  = $('#mentionSheet');
-  const mentionList   = $('#mentionList');
-  const mentionSearch = $('#mentionSearch');
-  const mentionClose  = $('#mentionClose');
-
-  const state = {
-    system: 'notes',
-    libraryTab: 'worldview',
-    libraryEditing: null,
-    noteEditing: null,
-    editorMode: null,
-    pendingMentions: null
-  };
-  let saveTimer = null;
-
-  const TAB_LABEL = { worldview: '世界观', character: '角色', map: '地图' };
-  const EMPTY_MSG = {
-    worldview: ['还没有世界观', '点击右下角的 + 开始构建'],
-    character: ['还没有角色', '点击右下角的 + 创建角色'],
-    map: ['还没有地图', '点击右下角的 + 创建地图']
-  };
-
-  /* ---------------- 工具函数 ---------------- */
-  const pad = (n) => String(n).padStart(2, '0');
-
-  function uid() {
-    if (window.crypto && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
-    return 'n' + Date.now().toString(36) + Math.random().toString(16).slice(2);
-  }
-
-  function formatTime(ts) {
-    const d = new Date(ts);
-    const now = new Date();
-    const sameDay = d.toDateString() === now.toDateString();
-    if (sameDay) return pad(d.getHours()) + ':' + pad(d.getMinutes());
-    const y = new Date(now);
-    y.setDate(now.getDate() - 1);
-    if (d.toDateString() === y.toDateString()) return '昨天';
-    if (d.getFullYear() === now.getFullYear()) return (d.getMonth() + 1) + '月' + d.getDate() + '日';
-    return d.getFullYear() + '/' + (d.getMonth() + 1) + '/' + d.getDate();
-  }
-
-  function formatFullTime(ts) {
-    const d = new Date(ts);
-    return d.getFullYear() + '年' + (d.getMonth() + 1) + '月' + d.getDate() + '日 ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
-  }
-
-  function truncate(s, n) {
-    s = (s || '').trim();
-    return s.length > n ? s.slice(0, n) + '…' : s;
-  }
-
-  function esc(s) {
-    const div = document.createElement('div');
-    div.textContent = s == null ? '' : s;
-    return div.innerHTML;
-  }
-
-  async function worldviewNameMap() {
-    const map = {};
-    const wvs = await DB.listWorldviews();
-    wvs.forEach(w => { map[w.id] = w.name || '未命名'; });
-    return map;
-  }
-
-  /* ---------------- 顶级体系切换 ---------------- */
-  function switchSystem(sys) {
-    state.system = sys;
-    document.getElementById('systemNotes').classList.toggle('active', sys === 'notes');
-    document.getElementById('systemLibrary').classList.toggle('active', sys === 'library');
-    tabbar.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.system === sys));
-    render();
-  }
-
-  function jumpToLibrary(type, id) {
-    state.libraryTab = type;
-    tabsEl.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.tab === type));
-    pageTitle.textContent = TAB_LABEL[type];
-    librarySearch.value = '';
-    switchSystem('library');
-    openEditor('library', type, id);
-  }
-
-  /* ---------------- 总控渲染 ---------------- */
-  async function render() {
-    if (state.system === 'notes') await renderNotes();
-    else await renderLibrary();
-  }
-
-  /* ---------------- 笔记列表渲染 ---------------- */
-  async function renderNotes() {
-    const q = notesSearch.value.trim().toLowerCase();
-    let list = await DB.listNotes();
-    list = list.slice().sort((a, b) => b.updatedAt - a.updatedAt);
-
-    if (q) {
-      list = list.filter(n => ((n.title || '') + ' ' + (n.body || '')).toLowerCase().indexOf(q) !== -1);
-    }
-
-    if (!list.length) {
-      notesListEl.innerHTML = '';
-      notesEmptyEl.classList.add('show');
-      notesEmptyEl.querySelector('p').textContent = q ? '没有找到笔记' : '还没有笔记';
-      notesEmptyEl.querySelector('span').textContent = q ? '换个关键词试试' : '点击右下角的 + 开始记录';
-      return;
-    }
-
-    notesEmptyEl.classList.remove('show');
-    const frag = document.createDocumentFragment();
-    list.forEach(note => frag.appendChild(renderNoteCard(note)));
-    notesListEl.innerHTML = '';
-    notesListEl.appendChild(frag);
-  }
-
-  function renderNoteCard(note) {
-    const card = document.createElement('article');
-    card.className = 'note';
-    card.dataset.id = note.id;
-
-    const head = document.createElement('div');
-    head.className = 'note-head';
-
-    const title = document.createElement('div');
-    title.className = 'note-title' + (note.title ? '' : ' untitled');
-    title.textContent = note.title || '新建笔记';
-
-    const time = document.createElement('div');
-    time.className = 'note-time';
-    time.textContent = formatTime(note.updatedAt);
-
-    head.appendChild(title);
-    head.appendChild(time);
-
-    const preview = document.createElement('p');
-    preview.className = 'note-preview';
-    preview.innerHTML = renderBodyPreview(note.body, note.mentions);
-
-    card.appendChild(head);
-    card.appendChild(preview);
-    return card;
-  }
-
-  function renderBodyPreview(body, mentions) {
-    body = body || '';
-    const parts = [];
-    const re = /@([^\s@，。！？、,.!?]{1,20})/g;
-    let lastIndex = 0;
-    let m;
-    while ((m = re.exec(body)) !== null) {
-      const name = m[1];
-      parts.push(esc(body.slice(lastIndex, m.index)));
-      if (mentions && mentions[name]) {
-        const ent = mentions[name];
-        parts.push('<span class="mention" data-type="' + ent.type + '" data-id="' + ent.id + '">@' + esc(name) + '</span>');
-      } else {
-        parts.push(esc('@' + name));
-      }
-      lastIndex = re.lastIndex;
-    }
-    parts.push(esc(body.slice(lastIndex)));
-    return parts.join('');
-  }
-
-  /* ---------------- 设定列表渲染 ---------------- */
-  async function renderLibrary() {
-    const q = librarySearch.value.trim().toLowerCase();
-    let list = [];
-
-    if (state.libraryTab === 'worldview') list = await DB.listWorldviews();
-    else if (state.libraryTab === 'character') list = await DB.listCharacters();
-    else if (state.libraryTab === 'map') list = await DB.listMaps();
-
-    list = list.slice().sort((a, b) => b.updatedAt - a.updatedAt);
-    cardSubtitle._wvMap = await worldviewNameMap();
-    countEl.textContent = list.length ? list.length + ' 条' : '';
-
-    if (!list.length) {
-      notesEl.innerHTML = '';
-      emptyEl.classList.add('show');
-      const msg = EMPTY_MSG[state.libraryTab];
-      emptyEl.querySelector('p').textContent = q ? '没有找到' + TAB_LABEL[state.libraryTab] : msg[0];
-      emptyEl.querySelector('span').textContent = q ? '换个关键词试试' : msg[1];
-      return;
-    }
-
-    let filtered = list;
-    if (q) filtered = await filterBySearch(list, q);
-
-    if (!filtered.length) {
-      notesEl.innerHTML = '';
-      emptyEl.classList.add('show');
-      emptyEl.querySelector('p').textContent = '没有找到' + TAB_LABEL[state.libraryTab];
-      emptyEl.querySelector('span').textContent = '换个关键词试试';
-      return;
-    }
-
-    emptyEl.classList.remove('show');
-    const frag = document.createDocumentFragment();
-    filtered.forEach(item => frag.appendChild(renderCard(item)));
-    notesEl.innerHTML = '';
-    notesEl.appendChild(frag);
-  }
-
-  async function filterBySearch(list, q) {
-    if (state.libraryTab === 'worldview') {
-      return list.filter(w => ((w.name || '') + ' ' + (w.summary || '') + ' ' + (w.settings || '') + ' ' + ((w.tags || []).join(' '))).toLowerCase().indexOf(q) !== -1);
-    }
-    if (state.libraryTab === 'character') {
-      const wvMap = await worldviewNameMap();
-      return list.filter(ch => {
-        const wvName = wvMap[ch.worldviewId] || '未归属';
-        return ((ch.name || '') + ' ' + (ch.appearance || '') + ' ' + (ch.personality || '') + ' ' + (ch.background || '') + ' ' + ((ch.tags || []).join(' ')) + ' ' + wvName).toLowerCase().indexOf(q) !== -1;
-      });
-    }
-    if (state.libraryTab === 'map') {
-      const wvMap = await worldviewNameMap();
-      return list.filter(mp => {
-        const wvName = wvMap[mp.worldviewId] || '未归属';
-        const placeNames = (mp.places || []).map(p => p.name).join(' ');
-        return ((mp.name || '') + ' ' + wvName + ' ' + placeNames).toLowerCase().indexOf(q) !== -1;
-      });
-    }
-    return list;
-  }
-
-  function renderCard(item) {
-    const card = document.createElement('article');
-    card.className = 'note';
-    card.dataset.id = item.id;
-
-    const head = document.createElement('div');
-    head.className = 'note-head';
-
-    const title = document.createElement('div');
-    title.className = 'note-title';
-    title.textContent = item.name || '未命名';
-
-    const time = document.createElement('div');
-    time.className = 'note-time';
-    time.textContent = formatTime(item.updatedAt);
-
-    head.appendChild(title);
-    head.appendChild(time);
-
-    if (state.libraryTab === 'map' && item.imageUrl) {
-      const thumb = document.createElement('img');
-      thumb.className = 'note-thumb';
-      thumb.src = item.imageUrl;
-      thumb.alt = '';
-      thumb.onerror = () => { thumb.style.display = 'none'; };
-      head.insertBefore(thumb, title);
-    }
-
-    const preview = document.createElement('p');
-    preview.className = 'note-preview';
-    preview.textContent = cardSubtitle(item);
-
-    card.appendChild(head);
-    card.appendChild(preview);
-    return card;
-  }
-
-  function cardSubtitle(item) {
-    if (state.libraryTab === 'worldview') return truncate(item.summary, 60) || '暂无简介';
-    if (state.libraryTab === 'character') {
-      const wvName = (cardSubtitle._wvMap || {})[item.worldviewId] || '未归属';
-      const pers = truncate(item.personality, 40);
-      return wvName + (pers ? ' · ' + pers : '');
-    }
-    if (state.libraryTab === 'map') {
-      const wvName = (cardSubtitle._wvMap || {})[item.worldviewId] || '未归属';
-      return wvName + ' · ' + (item.places || []).length + ' 个地点';
-    }
-    return '';
-  }
-
-  /* ---------------- 编辑器 ---------------- */
-  function autoGrowAll() {
-    formBody.querySelectorAll('textarea').forEach(t => {
-      t.style.height = 'auto';
-      t.style.height = t.scrollHeight + 'px';
-    });
-  }
-
-  function autoGrowNote() {
-    const t = document.getElementById('f-body');
-    if (!t) return;
-    t.style.height = 'auto';
-    t.style.height = t.scrollHeight + 'px';
-  }
-
-  function bindAutoGrow() {
-    formBody.querySelectorAll('textarea').forEach(t => t.addEventListener('input', autoGrowAll));
-  }
-
-  function updateMeta(rec) {
-    if (rec) metaEl.textContent = '最后编辑：' + formatFullTime(rec.updatedAt);
-  }
-
-  function worldviewSelectOptions(wvs, selectedId) {
-    let html = '<option value="">未归属</option>';
-    wvs.forEach(w => {
-      const sel = w.id === selectedId ? ' selected' : '';
-      html += '<option value="' + w.id + '"' + sel + '>' + (w.name || '未命名') + '</option>';
-    });
-    return html;
-  }
-
-  async function openEditor(mode, type, id) {
-    state.editorMode = mode;
-    editorEl.dataset.mode = mode;
-
-    if (mode === 'note') {
-      state.noteEditing = id || null;
-      state.pendingMentions = {};
-      backLabel.textContent = '笔记';
-
-      const note = id ? await DB.getNote(id) : null;
-      if (note && note.mentions) state.pendingMentions = Object.assign({}, note.mentions);
-
-      formBody.innerHTML =
-        '<input id="f-title" class="title" placeholder="标题" autocomplete="off" spellcheck="false" value="' + esc(note ? note.title : '') + '">' +
-        '<textarea id="f-body" class="content" placeholder="开始输入…" spellcheck="false">' + esc(note ? note.body : '') + '</textarea>' +
-        '<div class="editor-toolbar"><button type="button" id="mentionBtn">@ 提及设定</button></div>';
-
-      formBody.querySelector('#f-body').addEventListener('input', autoGrowNote);
-      showEditor(note);
-      return;
-    }
-
-    state.libraryEditing = { type: type, id: id || null };
-    state.pendingMentions = null;
-    backLabel.textContent = TAB_LABEL[type];
-
-    if (type === 'worldview') {
-      const wv = id ? await DB.getWorldview(id) : null;
-      formBody.innerHTML = worldviewForm(wv);
-      bindAutoGrow();
-      showEditor(wv);
-    } else if (type === 'character') {
-      const ch = id ? await DB.getCharacter(id) : null;
-      const wvs = await DB.listWorldviews();
-      formBody.innerHTML = characterForm(ch, wvs);
-      bindAutoGrow();
-      showEditor(ch);
-    } else if (type === 'map') {
-      const mp = id ? await DB.getMap(id) : null;
-      const wvs = await DB.listWorldviews();
-      formBody.innerHTML = mapForm(mp, wvs);
-      bindAutoGrow();
-      bindMapEvents();
-      showEditor(mp);
-    }
-  }
-
-  function showEditor(rec) {
-    editorEl.classList.add('open');
-    editorEl.setAttribute('aria-hidden', 'false');
-    document.body.style.overflow = 'hidden';
-    if (rec) updateMeta(rec);
-    requestAnimationFrame(() => {
-      autoGrowAll();
-      if (state.editorMode === 'note') autoGrowNote();
-      const first = formBody.querySelector('input, textarea, select');
-      if (first && !rec) setTimeout(() => first.focus(), 320);
-    });
-  }
-
-  function worldviewForm(wv) {
-    wv = wv || { name: '', summary: '', settings: '', tags: [] };
-    return `
-      <div class="field"><label class="field-label">名称</label><input id="f-name" value="${esc(wv.name)}" placeholder="世界观名称" /></div>
-      <div class="field"><label class="field-label">简介</label><textarea id="f-summary" placeholder="一句话简介…">${esc(wv.summary)}</textarea></div>
-      <div class="field"><label class="field-label">详细设定</label><textarea id="f-settings" placeholder="规则、历史、地理…">${esc(wv.settings)}</textarea></div>
-      <div class="field"><label class="field-label">标签（逗号分隔）</label><input id="f-tags" value="${esc((wv.tags || []).join(', '))}" placeholder="奇幻, 科幻" /></div>
-    `;
-  }
-
-  function characterForm(ch, wvs) {
-    ch = ch || { name: '', worldviewId: '', age: '', gender: '', appearance: '', personality: '', background: '', tags: [] };
-    return `
-      <div class="field"><label class="field-label">名称</label><input id="f-name" value="${esc(ch.name)}" placeholder="角色名" /></div>
-      <div class="field"><label class="field-label">所属世界观</label><select id="f-worldview">${worldviewSelectOptions(wvs, ch.worldviewId)}</select></div>
-      <div class="row-2">
-        <div class="field"><label class="field-label">年龄</label><input id="f-age" value="${esc(ch.age)}" /></div>
-        <div class="field"><label class="field-label">性别</label><input id="f-gender" value="${esc(ch.gender)}" /></div>
-      </div>
-      <div class="field"><label class="field-label">外貌</label><textarea id="f-appearance" placeholder="外貌特征…">${esc(ch.appearance)}</textarea></div>
-      <div class="field"><label class="field-label">性格</label><textarea id="f-personality" placeholder="性格特点…">${esc(ch.personality)}</textarea></div>
-      <div class="field"><label class="field-label">背景</label><textarea id="f-background" placeholder="角色背景故事…">${esc(ch.background)}</textarea></div>
-      <div class="field"><label class="field-label">标签（逗号分隔）</label><input id="f-tags" value="${esc((ch.tags || []).join(', '))}" /></div>
-    `;
-  }
-
-  function mapForm(mp, wvs) {
-    mp = mp || { name: '', worldviewId: '', imageUrl: '', places: [] };
-    let placesHtml = '';
-    const places = mp.places && mp.places.length ? mp.places : [{ name: '', desc: '' }];
-    places.forEach(p => { placesHtml += placeRowHtml(p); });
-    return `
-      <div class="field"><label class="field-label">名称</label><input id="f-name" value="${esc(mp.name)}" placeholder="地图名" /></div>
-      <div class="field"><label class="field-label">所属世界观</label><select id="f-worldview">${worldviewSelectOptions(wvs, mp.worldviewId)}</select></div>
-      <div class="field">
-        <label class="field-label">图片链接</label>
-        <input id="f-imageurl" value="${esc(mp.imageUrl || '')}" placeholder="粘贴图片 URL" />
-        <img id="f-imgpreview" class="img-preview" style="display:none;" alt="" />
-      </div>
-      <div class="field">
-        <label class="field-label">地点</label>
-        <div id="placeList">${placesHtml}</div>
-        <button class="add-place" id="addPlace" type="button">+ 添加地点</button>
-      </div>
-    `;
-  }
-
-  function placeRowHtml(p) {
-    return `
-      <div class="place">
-        <input class="p-name" value="${esc(p.name)}" placeholder="地点名" />
-        <input class="p-desc" value="${esc(p.desc)}" placeholder="描述" />
-        <button class="p-del" type="button" aria-label="删除">×</button>
-      </div>
-    `;
-  }
-
-  function bindMapEvents() {
-    const imgInput = formBody.querySelector('#f-imageurl');
-    const imgPreview = formBody.querySelector('#f-imgpreview');
-    function refreshPreview() {
-      const url = imgInput.value.trim();
-      if (url) { imgPreview.src = url; imgPreview.style.display = 'block'; }
-      else { imgPreview.style.display = 'none'; imgPreview.src = ''; }
-    }
-    imgInput.addEventListener('input', refreshPreview);
-    refreshPreview();
-
-    const placeList = formBody.querySelector('#placeList');
-    placeList.addEventListener('click', e => {
-      const del = e.target.closest('.p-del');
-      if (del) { const row = del.closest('.place'); if (row) row.remove(); }
-    });
-    formBody.querySelector('#addPlace').addEventListener('click', () => {
-      placeList.insertAdjacentHTML('beforeend', placeRowHtml({ name: '', desc: '' }));
-    });
-  }
-
-  function readTags() {
-    const el = formBody.querySelector('#f-tags');
-    if (!el) return [];
-    return el.value.split(/[,，]/).map(t => t.trim()).filter(Boolean);
-  }
-
-  async function closeEditor() {
-    try {
-      await flushSave();
-    } catch (e) {
-      console.warn('退出时保存失败:', e);
-    }
-    editorEl.classList.remove('open');
-    editorEl.setAttribute('aria-hidden', 'true');
-    document.body.style.overflow = '';
-    state.libraryEditing = null;
-    state.noteEditing = null;
-    state.editorMode = null;
-    state.pendingMentions = null;
-    render();
-  }
-
-  async function flushSave() {
-    clearTimeout(saveTimer);
-    saveTimer = null;
-    await saveNow();
-  }
-
-  async function parseMentions(body, pending) {
-    const result = {};
-    const re = /@([^\s@，。！？、,.!?]{1,20})/g;
-    let m;
-    while ((m = re.exec(body)) !== null) {
-      const name = m[1];
-      if (result[name]) continue;
-      if (pending && pending[name]) { result[name] = pending[name]; continue; }
-      const ent = await findEntityByName(name);
-      if (ent) result[name] = ent;
-    }
-    return result;
-  }
-
-  async function findEntityByName(name) {
-    const wvs = await DB.listWorldviews();
-    const w = wvs.find(x => (x.name || '') === name);
-    if (w) return { type: 'worldview', id: w.id };
-    const chs = await DB.listCharacters();
-    const c = chs.find(x => (x.name || '') === name);
-    if (c) return { type: 'character', id: c.id };
-    const mps = await DB.listMaps();
-    const mp = mps.find(x => (x.name || '') === name);
-    if (mp) return { type: 'map', id: mp.id };
-    return null;
-  }
-
-  async function saveNow() {
-    if (!state.editorMode) return;
-
-    if (state.editorMode === 'note') {
-      const titleEl = document.getElementById('f-title');
-      const bodyEl = document.getElementById('f-body');
-      const title = titleEl ? titleEl.value : '';
-      const body = bodyEl ? bodyEl.value : '';
-      const id = state.noteEditing;
-
-      if (!title.trim() && !body.trim()) {
-        if (id) await DB.deleteNote(id);
-        state.noteEditing = null;
-        state.editorMode = null;
-        render();
-        return;
-      }
-
-      const newMentions = await parseMentions(body, state.pendingMentions);
-      const rec = await DB.saveNote({ id: id, title: title.trim(), body: body, mentions: newMentions });
-      if (rec) {
-        if (!id) state.noteEditing = rec.id;
-        state.pendingMentions = newMentions;
-        updateMeta(rec);
-      }
-      return;
-    }
-
-    const { type, id } = state.libraryEditing;
-
-    if (type === 'worldview') {
-      const name = val('#f-name');
-      if (!name) {
-        if (id) await DB.deleteWorldview(id);
-        state.libraryEditing = null;
-        state.editorMode = null;
-        render();
-        return;
-      }
-      const rec = await DB.saveWorldview({ id: id, name: name, summary: val('#f-summary'), settings: val('#f-settings'), tags: readTags() });
-      if (rec) {
-        if (!id) state.libraryEditing.id = rec.id;
-        updateMeta(rec);
-      }
-    } else if (type === 'character') {
-      const name = val('#f-name');
-      if (!name) {
-        if (id) await DB.deleteCharacter(id);
-        state.libraryEditing = null;
-        state.editorMode = null;
-        render();
-        return;
-      }
-      const rec = await DB.saveCharacter({
-        id: id, name: name, worldviewId: val('#f-worldview') || '',
-        age: val('#f-age'), gender: val('#f-gender'),
-        appearance: val('#f-appearance'), personality: val('#f-personality'),
-        background: val('#f-background'), tags: readTags()
-      });
-      if (rec) {
-        if (!id) state.libraryEditing.id = rec.id;
-        updateMeta(rec);
-      }
-    } else if (type === 'map') {
-      const name = val('#f-name');
-      if (!name) {
-        if (id) await DB.deleteMap(id);
-        state.libraryEditing = null;
-        state.editorMode = null;
-        render();
-        return;
-      }
-      const places = [];
-      formBody.querySelectorAll('#placeList .place').forEach(row => {
-        const nm = row.querySelector('.p-name').value.trim();
-        const ds = row.querySelector('.p-desc').value.trim();
-        if (nm || ds) places.push({ id: uid(), name: nm, desc: ds });
-      });
-      const rec = await DB.saveMap({ id: id, name: name, worldviewId: val('#f-worldview') || '', imageUrl: val('#f-imageurl').trim(), places: places });
-      if (rec) {
-        if (!id) state.libraryEditing.id = rec.id;
-        updateMeta(rec);
-      }
-    }
-  }
-
-  function val(sel) {
-    const el = formBody.querySelector(sel);
-    return el ? el.value : '';
-  }
-
-  function scheduleSave() {
-    clearTimeout(saveTimer);
-    saveTimer = setTimeout(async () => {
-      try {
-        await saveNow();
-      } catch (e) {
-        console.warn('自动保存失败:', e);
-      }
-    }, 1500);
-  }
-
-  /* ---------------- @ 提及选择器 ---------------- */
-  function openMentionSheet() {
-    mentionSheet.hidden = false;
-    mentionSearch.value = '';
-    renderMentionList('');
-  }
-
-  function closeMentionSheet() {
-    mentionSheet.hidden = true;
-  }
-
-  async function renderMentionList(q) {
-    const wvs = await DB.listWorldviews();
-    const chs = await DB.listCharacters();
-    const mps = await DB.listMaps();
-
-    const groups = [
-      { label: '世界观', type: 'worldview', items: wvs },
-      { label: '角色', type: 'character', items: chs },
-      { label: '地图', type: 'map', items: mps }
-    ];
-
-    let html = '';
-    let any = false;
-    groups.forEach(g => {
-      const filtered = q ? g.items.filter(it => (it.name || '').toLowerCase().indexOf(q) !== -1) : g.items;
-      if (!filtered.length) return;
-      any = true;
-      html += '<div class="sheet-group">' + g.label + '</div>';
-      filtered.forEach(it => {
-        html += '<div class="sheet-item" data-type="' + g.type + '" data-id="' + it.id + '" data-name="' + esc(it.name) + '">' + esc(it.name || '未命名') + '</div>';
-      });
-    });
-
-    if (!any) html = '<div style="text-align:center;padding:40px 0;color:var(--label-3);">还没有设定内容</div>';
-    mentionList.innerHTML = html;
-  }
-
-  /* ---------------- 事件绑定 ---------------- */
-
-  // 底部导航
-  tabbar.addEventListener('click', e => {
-    const btn = e.target.closest('button[data-system]');
-    if (btn) switchSystem(btn.dataset.system);
-  });
-
-  // 笔记列表点击（chip 优先跳转，否则打开笔记）
-  notesListEl.addEventListener('click', e => {
-    const chip = e.target.closest('.mention');
-    if (chip) {
-      jumpToLibrary(chip.dataset.type, chip.dataset.id);
-      return;
-    }
-    const card = e.target.closest('.note');
-    if (card) openEditor('note', null, card.dataset.id);
-  });
-
-  // 设定列表点击
-  notesEl.addEventListener('click', e => {
-    const card = e.target.closest('.note');
-    if (card) openEditor('library', state.libraryTab, card.dataset.id);
-  });
-
-  // 新建（改为直接打开编辑器，不再等网络）
-  fab.addEventListener('click', function () {
-    if (state.system === 'notes') {
-      openEditor('note', null, null);
-    } else {
-      openEditor('library', state.libraryTab, null);
-    }
-  });
-
-  // 表单输入保存（事件委托，两种模式通用）
-  formBody.addEventListener('input', function () {
-    scheduleSave();
-  });
-
-  // 笔记编辑器内的 @ 按钮（事件委托）
-  formBody.addEventListener('click', function (e) {
-    if (e.target.closest('#mentionBtn')) openMentionSheet();
-  });
-
-  // 关闭编辑器（会先保存）
-  backBtn.addEventListener('click', closeEditor);
-  doneBtn.addEventListener('click', closeEditor);
-
-  // 删除
-  deleteBtn.addEventListener('click', async function () {
-    if (state.editorMode === 'note') {
-      const id = state.noteEditing;
-      if (!id) { closeEditor(); return; }
-      if (!window.confirm('删除这条笔记？此操作无法撤销。')) return;
-      await DB.deleteNote(id);
-      state.noteEditing = null;
-      state.editorMode = null;
-      closeEditor();
-    } else if (state.editorMode === 'library') {
-      if (!state.libraryEditing) return;
-      const { type, id } = state.libraryEditing;
-      if (!id) { closeEditor(); return; }
-      if (!window.confirm('删除这条' + TAB_LABEL[type] + '？此操作无法撤销。')) return;
-      if (type === 'worldview') await DB.deleteWorldview(id);
-      else if (type === 'character') await DB.deleteCharacter(id);
-      else if (type === 'map') await DB.deleteMap(id);
-      state.libraryEditing = null;
-      state.editorMode = null;
-      closeEditor();
-    }
-  });
-
-  // 搜索
-  notesSearch.addEventListener('input', renderNotes);
-  librarySearch.addEventListener('input', renderLibrary);
-
-  // 设定子 tab 切换
-  tabsEl.addEventListener('click', e => {
-    const btn = e.target.closest('button[data-tab]');
-    if (!btn) return;
-    const tab = btn.dataset.tab;
-    if (tab === state.libraryTab) return;
-    state.libraryTab = tab;
-    tabsEl.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
-    pageTitle.textContent = TAB_LABEL[tab];
-    librarySearch.value = '';
-    renderLibrary();
-  });
-
-  // @ 选择器：搜索
-  mentionSearch.addEventListener('input', () => {
-    renderMentionList(mentionSearch.value.trim().toLowerCase());
-  });
-
-  // @ 选择器：选中一项
-  mentionList.addEventListener('click', e => {
-    const item = e.target.closest('.sheet-item');
-    if (!item) return;
-    const type = item.dataset.type;
-    const id = item.dataset.id;
-    const name = item.dataset.name;
-
-    const bodyEl = document.getElementById('f-body');
-    if (!bodyEl) return;
-
-    const start = bodyEl.selectionStart;
-    const end = bodyEl.selectionEnd;
-    const val = bodyEl.value;
-    const insert = '@' + name + ' ';
-    bodyEl.value = val.slice(0, start) + insert + val.slice(end);
-
-    if (state.pendingMentions) state.pendingMentions[name] = { type: type, id: id };
-
-    closeMentionSheet();
-    bodyEl.focus();
-    const pos = start + insert.length;
-    bodyEl.setSelectionRange(pos, pos);
-    scheduleSave();
-  });
-
-  // @ 选择器：关闭
-  mentionClose.addEventListener('click', closeMentionSheet);
-  mentionSheet.addEventListener('click', e => {
-    if (e.target === mentionSheet) closeMentionSheet();
-  });
-
-  // 快捷键：Esc 退出编辑
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') {
-      if (!mentionSheet.hidden) { closeMentionSheet(); return; }
-      if (editorEl.classList.contains('open')) closeEditor();
-    }
-  });
-
-  // 页面隐藏/关闭前保存
-  window.addEventListener('pagehide', () => { if (state.editorMode) flushSave(); });
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden' && state.editorMode) flushSave();
-  });
-
-  /* ---------------- 启动 ---------------- */
-  // 获取 DOM
-  const lockScreen = document.getElementById('lockScreen');
-  const pwdInput = document.getElementById('pwdInput');
-  const unlockBtn = document.getElementById('unlockBtn');
-  const pwdError = document.getElementById('pwdError');
-
-  // 隐藏的登录邮箱（与 Supabase 后台对应）
-  const HIDDEN_EMAIL = 'user@myoc.com';
-  let appStarted = false; // 防止重复初始化
-
-  async function bootApp() {
-    if (appStarted) return;
-    appStarted = true;
-
-    lockScreen.classList.add('hidden');
-    await DB.init(); // 只有验证通过，才允许拉取数据
-    sb.channel('oc-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public' }, function () { render(); })
-      .subscribe();
-    switchSystem('notes');
-  }
-
-  // 启动时强制清除登录状态，必须每次输入密码
-  (async function () {
-    // 1. 强制登出，销毁 Supabase 存储在浏览器的登录 Token
-    await sb.auth.signOut();
-
-    // 2. 强制清空本地缓存数据，防止别人看到旧数据
-    localStorage.removeItem('oc-db-cache');
-
-    // 3. 确保锁屏界面显示
-    lockScreen.classList.remove('hidden');
-    pwdInput.focus();
-
-    // 4. 防止重复绑定事件
-    const newUnlockBtn = unlockBtn.cloneNode(true);
-    unlockBtn.parentNode.replaceChild(newUnlockBtn, unlockBtn);
-
-    newUnlockBtn.addEventListener('click', async () => {
-      const pwd = pwdInput.value.trim();
-      if (!pwd) return;
-      newUnlockBtn.textContent = '验证中...';
-      newUnlockBtn.disabled = true;
-      pwdError.style.display = 'none';
-
-      const { data, error } = await sb.auth.signInWithPassword({
-        email: HIDDEN_EMAIL,
-        password: pwd
-      });
-
-      if (error) {
-        pwdError.style.display = 'block';
-        newUnlockBtn.textContent = '进入系统';
-        newUnlockBtn.disabled = false;
-        pwdInput.value = '';
-      } else {
-        bootApp();
-      }
-    });
-
-    pwdInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') newUnlockBtn.click();
-    });
-  })();
-})();
-</script>
 </body>
 </html>

@@ -553,9 +553,40 @@
     .page { padding-top: 8px; }
     .fab { right: calc(50% - 360px + 4px); }
   }
+
+  .lock-screen {
+    position: fixed; inset: 0; z-index: 100;
+    background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .lock-screen.hidden { display: none; }
+  .lock-box {
+    width: 100%; max-width: 320px;
+    background: var(--card); padding: 30px 20px; border-radius: 16px;
+    text-align: center;
+  }
+  .lock-box h2 { margin: 0 0 20px; font-size: 24px; color: var(--label); }
+  .lock-box input {
+    width: 100%; background: var(--bg); border-radius: 10px; padding: 12px 14px;
+    font-size: 16px; color: var(--label); margin-bottom: 16px; border: 1px solid var(--sep);
+  }
+  .lock-box button {
+    width: 100%; background: var(--blue); color: #fff; padding: 12px;
+    border-radius: 10px; font-size: 16px; font-weight: 600;
+  }
 </style>
 </head>
 <body>
+
+<div class="lock-screen" id="lockScreen">
+  <div class="lock-box">
+    <h2>OC 数据库</h2>
+    <input type="password" id="pwdInput" placeholder="请输入访问密码" autocomplete="off" />
+    <button id="unlockBtn">进入系统</button>
+    <p id="pwdError" style="color: var(--red); display: none; font-size: 14px; margin-top: 10px;">密码错误，请重试</p>
+  </div>
+</div>
 
 <div id="app">
 
@@ -693,6 +724,11 @@
       return { id: row.id, title: row.title, body: row.body, mentions: Array.isArray(row.mentions) ? {} : (row.mentions || {}), createdAt: row.created_at, updatedAt: row.updated_at };
     }
 
+    function upsert(arr, rec) {
+      const i = arr.findIndex(o => o.id === rec.id);
+      if (i >= 0) arr[i] = rec; else arr.push(rec);
+    }
+
     return {
       init: async function () {
         try {
@@ -729,140 +765,147 @@
         }
       },
 
-      async listWorldviews() {
-        try {
-          const { data: rows, error } = await sb.from('worldviews').select('*').is('deleted_at', null).order('updated_at', { ascending: false });
-          if (error) throw error;
-          const mapped = rows.map(mapWorldview);
-          cache.worldviews = mapped;
-          persistCache();
-          return mapped;
-        } catch (e) { return cache.worldviews.slice(); }
+      listWorldviews() {
+        return cache.worldviews.slice().sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
       },
-      async getWorldview(id) {
-        try {
-          const { data: row, error } = await sb.from('worldviews').select('*').eq('id', id).single();
-          if (error) throw error;
-          return mapWorldview(row);
-        } catch (e) { return cache.worldviews.find(o => o.id === id) || null; }
+      getWorldview(id) {
+        return cache.worldviews.find(o => o.id === id) || null;
       },
-      async saveWorldview(obj) {
-        const payload = { name: obj.name, summary: obj.summary, settings: obj.settings, tags: JSON.stringify(obj.tags || []) };
+      saveWorldview(obj) {
+        const now = new Date().toISOString();
+        const existing = obj.id ? cache.worldviews.find(o => o.id === obj.id) : null;
+        const rec = {
+          id: obj.id || uid(),
+          name: obj.name,
+          summary: obj.summary,
+          settings: obj.settings,
+          tags: obj.tags || [],
+          createdAt: existing ? existing.createdAt : now,
+          updatedAt: now
+        };
+        upsert(cache.worldviews, rec);
+        persistCache();
+        const payload = { name: rec.name, summary: rec.summary, settings: rec.settings, tags: JSON.stringify(rec.tags) };
         if (obj.id) {
-          const { data: row, error } = await sb.from('worldviews').update(payload).eq('id', obj.id).select().single();
-          if (error) throw error;
-          return mapWorldview(row);
+          sb.from('worldviews').update(payload).eq('id', obj.id).then(() => {}).catch(e => console.warn('同步世界观失败', e));
         } else {
-          const { data: row, error } = await sb.from('worldviews').insert(payload).select().single();
-          if (error) throw error;
-          return mapWorldview(row);
+          payload.id = rec.id;
+          sb.from('worldviews').insert(payload).then(() => {}).catch(e => console.warn('同步世界观失败', e));
         }
+        return rec;
       },
-      async deleteWorldview(id) {
-        const { error } = await sb.from('worldviews').update({ deleted_at: new Date().toISOString() }).eq('id', id);
-        if (error) throw error;
+      deleteWorldview(id) {
+        cache.worldviews = cache.worldviews.filter(o => o.id !== id);
+        persistCache();
+        sb.from('worldviews').update({ deleted_at: new Date().toISOString() }).eq('id', id).then(() => {}).catch(e => console.warn('删除世界观失败', e));
       },
 
-      async listCharacters() {
-        try {
-          const { data: rows, error } = await sb.from('characters').select('*').is('deleted_at', null).order('updated_at', { ascending: false });
-          if (error) throw error;
-          const mapped = rows.map(mapCharacter);
-          cache.characters = mapped;
-          persistCache();
-          return mapped;
-        } catch (e) { return cache.characters.slice(); }
+      listCharacters() {
+        return cache.characters.slice().sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
       },
-      async getCharacter(id) {
-        try {
-          const { data: row, error } = await sb.from('characters').select('*').eq('id', id).single();
-          if (error) throw error;
-          return mapCharacter(row);
-        } catch (e) { return cache.characters.find(o => o.id === id) || null; }
+      getCharacter(id) {
+        return cache.characters.find(o => o.id === id) || null;
       },
-      async saveCharacter(obj) {
-        const payload = { name: obj.name, worldview_id: obj.worldviewId || null, age: obj.age, gender: obj.gender, appearance: obj.appearance, personality: obj.personality, background: obj.background, tags: JSON.stringify(obj.tags || []) };
+      saveCharacter(obj) {
+        const now = new Date().toISOString();
+        const existing = obj.id ? cache.characters.find(o => o.id === obj.id) : null;
+        const rec = {
+          id: obj.id || uid(),
+          name: obj.name,
+          worldviewId: obj.worldviewId || null,
+          age: obj.age,
+          gender: obj.gender,
+          appearance: obj.appearance,
+          personality: obj.personality,
+          background: obj.background,
+          tags: obj.tags || [],
+          createdAt: existing ? existing.createdAt : now,
+          updatedAt: now
+        };
+        upsert(cache.characters, rec);
+        persistCache();
+        const payload = { name: rec.name, worldview_id: rec.worldviewId, age: rec.age, gender: rec.gender, appearance: rec.appearance, personality: rec.personality, background: rec.background, tags: JSON.stringify(rec.tags) };
         if (obj.id) {
-          const { data: row, error } = await sb.from('characters').update(payload).eq('id', obj.id).select().single();
-          if (error) throw error;
-          return mapCharacter(row);
+          sb.from('characters').update(payload).eq('id', obj.id).then(() => {}).catch(e => console.warn('同步角色失败', e));
         } else {
-          const { data: row, error } = await sb.from('characters').insert(payload).select().single();
-          if (error) throw error;
-          return mapCharacter(row);
+          payload.id = rec.id;
+          sb.from('characters').insert(payload).then(() => {}).catch(e => console.warn('同步角色失败', e));
         }
+        return rec;
       },
-      async deleteCharacter(id) {
-        const { error } = await sb.from('characters').update({ deleted_at: new Date().toISOString() }).eq('id', id);
-        if (error) throw error;
+      deleteCharacter(id) {
+        cache.characters = cache.characters.filter(o => o.id !== id);
+        persistCache();
+        sb.from('characters').update({ deleted_at: new Date().toISOString() }).eq('id', id).then(() => {}).catch(e => console.warn('删除角色失败', e));
       },
 
-      async listMaps() {
-        try {
-          const { data: rows, error } = await sb.from('maps').select('*').is('deleted_at', null).order('updated_at', { ascending: false });
-          if (error) throw error;
-          const mapped = rows.map(mapMap);
-          cache.maps = mapped;
-          persistCache();
-          return mapped;
-        } catch (e) { return cache.maps.slice(); }
+      listMaps() {
+        return cache.maps.slice().sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
       },
-      async getMap(id) {
-        try {
-          const { data: row, error } = await sb.from('maps').select('*').eq('id', id).single();
-          if (error) throw error;
-          return mapMap(row);
-        } catch (e) { return cache.maps.find(o => o.id === id) || null; }
+      getMap(id) {
+        return cache.maps.find(o => o.id === id) || null;
       },
-      async saveMap(obj) {
-        const payload = { name: obj.name, worldview_id: obj.worldviewId || null, image_url: obj.imageUrl, places: obj.places || [] };
+      saveMap(obj) {
+        const now = new Date().toISOString();
+        const existing = obj.id ? cache.maps.find(o => o.id === obj.id) : null;
+        const rec = {
+          id: obj.id || uid(),
+          name: obj.name,
+          worldviewId: obj.worldviewId || null,
+          imageUrl: obj.imageUrl,
+          places: obj.places || [],
+          createdAt: existing ? existing.createdAt : now,
+          updatedAt: now
+        };
+        upsert(cache.maps, rec);
+        persistCache();
+        const payload = { name: rec.name, worldview_id: rec.worldviewId, image_url: rec.imageUrl, places: rec.places };
         if (obj.id) {
-          const { data: row, error } = await sb.from('maps').update(payload).eq('id', obj.id).select().single();
-          if (error) throw error;
-          return mapMap(row);
+          sb.from('maps').update(payload).eq('id', obj.id).then(() => {}).catch(e => console.warn('同步地图失败', e));
         } else {
-          const { data: row, error } = await sb.from('maps').insert(payload).select().single();
-          if (error) throw error;
-          return mapMap(row);
+          payload.id = rec.id;
+          sb.from('maps').insert(payload).then(() => {}).catch(e => console.warn('同步地图失败', e));
         }
+        return rec;
       },
-      async deleteMap(id) {
-        const { error } = await sb.from('maps').update({ deleted_at: new Date().toISOString() }).eq('id', id);
-        if (error) throw error;
+      deleteMap(id) {
+        cache.maps = cache.maps.filter(o => o.id !== id);
+        persistCache();
+        sb.from('maps').update({ deleted_at: new Date().toISOString() }).eq('id', id).then(() => {}).catch(e => console.warn('删除地图失败', e));
       },
 
-      async listNotes() {
-        try {
-          const { data: rows, error } = await sb.from('notes').select('*').is('deleted_at', null).order('updated_at', { ascending: false });
-          if (error) throw error;
-          const mapped = rows.map(mapNote);
-          cache.notes = mapped;
-          persistCache();
-          return mapped;
-        } catch (e) { return cache.notes.slice(); }
+      listNotes() {
+        return cache.notes.slice().sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
       },
-      async getNote(id) {
-        try {
-          const { data: row, error } = await sb.from('notes').select('*').eq('id', id).single();
-          if (error) throw error;
-          return mapNote(row);
-        } catch (e) { return cache.notes.find(o => o.id === id) || null; }
+      getNote(id) {
+        return cache.notes.find(o => o.id === id) || null;
       },
-      async saveNote(obj) {
-        const payload = { title: obj.title, body: obj.body, mentions: obj.mentions || {} };
+      saveNote(obj) {
+        const now = new Date().toISOString();
+        const existing = obj.id ? cache.notes.find(o => o.id === obj.id) : null;
+        const rec = {
+          id: obj.id || uid(),
+          title: obj.title,
+          body: obj.body,
+          mentions: obj.mentions || {},
+          createdAt: existing ? existing.createdAt : now,
+          updatedAt: now
+        };
+        upsert(cache.notes, rec);
+        persistCache();
+        const payload = { title: rec.title, body: rec.body, mentions: rec.mentions };
         if (obj.id) {
-          const { data: row, error } = await sb.from('notes').update(payload).eq('id', obj.id).select().single();
-          if (error) throw error;
-          return mapNote(row);
+          sb.from('notes').update(payload).eq('id', obj.id).then(() => {}).catch(e => console.warn('同步笔记失败', e));
         } else {
-          const { data: row, error } = await sb.from('notes').insert(payload).select().single();
-          if (error) throw error;
-          return mapNote(row);
+          payload.id = rec.id;
+          sb.from('notes').insert(payload).then(() => {}).catch(e => console.warn('同步笔记失败', e));
         }
+        return rec;
       },
-      async deleteNote(id) {
-        const { error } = await sb.from('notes').update({ deleted_at: new Date().toISOString() }).eq('id', id);
-        if (error) throw error;
+      deleteNote(id) {
+        cache.notes = cache.notes.filter(o => o.id !== id);
+        persistCache();
+        sb.from('notes').update({ deleted_at: new Date().toISOString() }).eq('id', id).then(() => {}).catch(e => console.warn('删除笔记失败', e));
       }
     };
   })();
@@ -976,9 +1019,9 @@
   }
 
   /* ---------------- 总控渲染 ---------------- */
-  function render() {
-    if (state.system === 'notes') renderNotes();
-    else renderLibrary();
+  async function render() {
+    if (state.system === 'notes') await renderNotes();
+    else await renderLibrary();
   }
 
   /* ---------------- 笔记列表渲染 ---------------- */
@@ -1492,7 +1535,7 @@
       } catch (e) {
         console.warn('自动保存失败:', e);
       }
-    }, 300);
+    }, 1500);
   }
 
   /* ---------------- @ 提及选择器 ---------------- */
@@ -1589,6 +1632,7 @@
       if (!window.confirm('删除这条笔记？此操作无法撤销。')) return;
       await DB.deleteNote(id);
       state.noteEditing = null;
+      state.editorMode = null;
       closeEditor();
     } else if (state.editorMode === 'library') {
       if (!state.libraryEditing) return;
@@ -1599,6 +1643,7 @@
       else if (type === 'character') await DB.deleteCharacter(id);
       else if (type === 'map') await DB.deleteMap(id);
       state.libraryEditing = null;
+      state.editorMode = null;
       closeEditor();
     }
   });
@@ -1672,16 +1717,69 @@
   });
 
   /* ---------------- 启动 ---------------- */
-  (async function () {
-    await DB.init();
+  // 获取 DOM
+  const lockScreen = document.getElementById('lockScreen');
+  const pwdInput = document.getElementById('pwdInput');
+  const unlockBtn = document.getElementById('unlockBtn');
+  const pwdError = document.getElementById('pwdError');
 
+  // 隐藏的登录邮箱（与 Supabase 后台对应）
+  const HIDDEN_EMAIL = 'user@myoc.com';
+  let appStarted = false; // 防止重复初始化
+
+  async function bootApp() {
+    if (appStarted) return;
+    appStarted = true;
+
+    lockScreen.classList.add('hidden');
+    await DB.init(); // 只有验证通过，才允许拉取数据
     sb.channel('oc-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public' }, function () {
-        render();
-      })
+      .on('postgres_changes', { event: '*', schema: 'public' }, function () { render(); })
       .subscribe();
-
     switchSystem('notes');
+  }
+
+  // 启动时强制清除登录状态，必须每次输入密码
+  (async function () {
+    // 1. 强制登出，销毁 Supabase 存储在浏览器的登录 Token
+    await sb.auth.signOut();
+
+    // 2. 强制清空本地缓存数据，防止别人看到旧数据
+    localStorage.removeItem('oc-db-cache');
+
+    // 3. 确保锁屏界面显示
+    lockScreen.classList.remove('hidden');
+    pwdInput.focus();
+
+    // 4. 防止重复绑定事件
+    const newUnlockBtn = unlockBtn.cloneNode(true);
+    unlockBtn.parentNode.replaceChild(newUnlockBtn, unlockBtn);
+
+    newUnlockBtn.addEventListener('click', async () => {
+      const pwd = pwdInput.value.trim();
+      if (!pwd) return;
+      newUnlockBtn.textContent = '验证中...';
+      newUnlockBtn.disabled = true;
+      pwdError.style.display = 'none';
+
+      const { data, error } = await sb.auth.signInWithPassword({
+        email: HIDDEN_EMAIL,
+        password: pwd
+      });
+
+      if (error) {
+        pwdError.style.display = 'block';
+        newUnlockBtn.textContent = '进入系统';
+        newUnlockBtn.disabled = false;
+        pwdInput.value = '';
+      } else {
+        bootApp();
+      }
+    });
+
+    pwdInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') newUnlockBtn.click();
+    });
   })();
 })();
 </script>

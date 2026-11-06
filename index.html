@@ -27,8 +27,8 @@
     --safe-bottom: env(safe-area-inset-bottom, 0px);
   }
 
-  html { overflow-x: hidden; }
   html, body { height: 100%; }
+  html { overflow-x: hidden; }
 
   body {
     margin: 0;
@@ -39,6 +39,7 @@
     -webkit-font-smoothing: antialiased;
     -webkit-tap-highlight-color: transparent;
     overscroll-behavior-y: none;
+    overflow-x: hidden;
   }
 
   button {
@@ -296,7 +297,7 @@
   /* ============ 编辑页 ============ */
   .editor {
     position: fixed;
-    inset: 0;
+    top: 0; right: 0; bottom: 0; left: 0;
     z-index: 20;
     background: var(--bg);
     transform: translateX(100%);
@@ -515,7 +516,7 @@
 
   /* ============ @ 提及选择器 ============ */
   .sheet-mask {
-    position: fixed; inset: 0; z-index: 30;
+    position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 30;
     background: rgba(0, 0, 0, .5);
     display: flex; align-items: flex-end;
   }
@@ -589,7 +590,7 @@
 
   /* ============ 新版开屏锁屏 ============ */
   .bg-grid {
-    position: fixed; inset: 0;
+    position: absolute; top: 0; right: 0; bottom: 0; left: 0;
     z-index: -3;
     background-image:
       linear-gradient(to right, rgba(255,255,255,0.02) 1px, transparent 1px),
@@ -597,10 +598,11 @@
     background-size: 40px 40px;
     mask-image: radial-gradient(circle at center, black 20%, transparent 80%);
     -webkit-mask-image: radial-gradient(circle at center, black 20%, transparent 80%);
+    pointer-events: none;
   }
 
   .noise {
-    position: fixed; inset: 0;
+    position: absolute; top: 0; right: 0; bottom: 0; left: 0;
     z-index: -1;
     opacity: 0.03;
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
@@ -608,22 +610,24 @@
   }
 
   .bg-glow-1 {
-    position: fixed;
+    position: absolute;
     top: -10%; left: -10%;
-    width: 60vw; height: 60vw;
+    width: 60vmin; height: 60vmin;
     background: radial-gradient(circle, rgba(100, 150, 255, 0.04) 0%, transparent 60%);
     filter: blur(40px);
     z-index: -2;
     animation: floatGlow1 10s ease-in-out infinite alternate;
+    pointer-events: none;
   }
   .bg-glow-2 {
-    position: fixed;
+    position: absolute;
     bottom: -10%; right: -10%;
-    width: 50vw; height: 50vw;
+    width: 50vmin; height: 50vmin;
     background: radial-gradient(circle, rgba(255, 200, 100, 0.03) 0%, transparent 60%);
     filter: blur(40px);
     z-index: -2;
     animation: floatGlow2 12s ease-in-out infinite alternate;
+    pointer-events: none;
   }
 
   @keyframes floatGlow1 {
@@ -636,7 +640,7 @@
   }
 
   .sys-wrap {
-    position: fixed; inset: 0;
+    position: fixed; top: 0; right: 0; bottom: 0; left: 0;
     z-index: 9999;
     display: flex;
     flex-direction: column;
@@ -733,16 +737,17 @@
     max-width: 280px;
     margin: 0 auto;
     transform: translateY(-4vh);
+    transform: translateY(-4dvh);
   }
   .sys-main.shake {
     animation: shake 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
   }
   @keyframes shake {
-    0%, 100% { transform: translateY(-4vh) translateX(0); }
-    20% { transform: translateY(-4vh) translateX(-10px); }
-    40% { transform: translateY(-4vh) translateX(10px); }
-    60% { transform: translateY(-4vh) translateX(-6px); }
-    80% { transform: translateY(-4vh) translateX(6px); }
+    0%, 100% { transform: translateY(-4vh) translateX(0); transform: translateY(-4dvh) translateX(0); }
+    20% { transform: translateY(-4vh) translateX(-10px); transform: translateY(-4dvh) translateX(-10px); }
+    40% { transform: translateY(-4vh) translateX(10px); transform: translateY(-4dvh) translateX(10px); }
+    60% { transform: translateY(-4vh) translateX(-6px); transform: translateY(-4dvh) translateX(-6px); }
+    80% { transform: translateY(-4vh) translateX(6px); transform: translateY(-4dvh) translateX(6px); }
   }
 
   .ambient-glow {
@@ -932,13 +937,13 @@
 
   @media (max-width: 480px) {
     .sys-wrap { padding: calc(24px + var(--safe-top)) 20px calc(24px + var(--safe-bottom)); }
-    .sys-main { transform: translateY(-2vh); }
+    .sys-main { transform: translateY(-2vh); transform: translateY(-2dvh); }
     @keyframes shake {
-      0%, 100% { transform: translateY(-2vh) translateX(0); }
-      20% { transform: translateY(-2vh) translateX(-10px); }
-      40% { transform: translateY(-2vh) translateX(10px); }
-      60% { transform: translateY(-2vh) translateX(-6px); }
-      80% { transform: translateY(-2vh) translateX(6px); }
+      0%, 100% { transform: translateY(-2vh) translateX(0); transform: translateY(-2dvh) translateX(0); }
+      20% { transform: translateY(-2vh) translateX(-10px); transform: translateY(-2dvh) translateX(-10px); }
+      40% { transform: translateY(-2vh) translateX(10px); transform: translateY(-2dvh) translateX(10px); }
+      60% { transform: translateY(-2vh) translateX(-6px); transform: translateY(-2dvh) translateX(-6px); }
+      80% { transform: translateY(-2vh) translateX(6px); transform: translateY(-2dvh) translateX(6px); }
     }
   }
 </style>
